@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+# Never commit captures, HAR recordings or browser profiles.
+*.har
+.bloomterm*/
+coverage/
+# Claude Code: local settings and worktrees
+.claude/settings.local.json
+.claude/worktrees/

@@ -1,0 +1,19 @@
+{
+  "name": "@bloomterm/cli",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "bt": "./src/main.ts"
+  },
+  "dependencies": {
+    "@bloomterm/agent": "workspace:*",
+    "@bloomterm/core": "workspace:*",
+    "@bloomterm/daemon": "workspace:*"
+  },
+  "devDependencies": {
+    "@bloomterm/browser": "workspace:*",
+    "@bloomterm/integrations": "workspace:*"
+  }
+}

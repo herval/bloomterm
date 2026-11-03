@@ -1,0 +1,5 @@
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+# The Node that ships inside the app; `make app` downloads it (scripts/fetch-node.sh).
+src-tauri/binaries/

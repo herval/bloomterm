@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>bloomterm</title>
+    <!-- Shown while the app starts bloomd, and if it can't; then the window goes to bloomd's web app. -->
+    <style>
+      :root {
+        --bg: #f4f5f7;
+        --text: #13161b;
+        --muted: #677180;
+        --line: #dde1e7;
+        --sunken: #f1f3f6;
+        --down: #c0392b;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b0d10;
+          --text: #e7eaee;
+          --muted: #8a939e;
+          --line: #242931;
+          --sunken: #101317;
+          --down: #ff7a7a;
+        }
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      main {
+        height: 100%;
+        display: grid;
+        place-content: center;
+        gap: 14px;
+        padding: 0 32px;
+        max-width: 720px;
+        margin: 0 auto;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 18px;
+      }
+      .mark {
+        width: 26px;
+        height: 26px;
+        /* The candle bloom, drawn by scripts/icons.mjs. */
+        background: url(mark.svg) center / contain no-repeat;
+      }
+      #status {
+        color: var(--muted);
+      }
+      #status.error {
+        color: var(--down);
+      }
+      pre {
+        margin: 0;
+        padding: 10px 12px;
+        max-height: 40vh;
+        overflow: auto;
+        background: var(--sunken);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font: 12px/1.45 ui-monospace, Menlo, monospace;
+        white-space: pre-wrap;
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      pre:empty {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand"><span class="mark" aria-hidden="true"></span>bloomterm</div>
+      <div id="status" role="status">Starting bloomd…</div>
+      <pre id="detail"></pre>
+    </main>
+    <script>
+      // The app opens this page with what bloomd is doing in ?s={ text, error, detail }.
+      try {
+        const s = JSON.parse(new URLSearchParams(location.search).get('s') ?? 'null');
+        if (s) {
+          const status = document.getElementById('status');
+          status.textContent = s.text;
+          status.className = s.error ? 'error' : '';
+          document.getElementById('detail').textContent = s.detail ?? '';
+        }
+      } catch {
+        // the default, "Starting bloomd…"
+      }
+    </script>
+  </body>
+</html>

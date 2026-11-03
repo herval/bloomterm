@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- bloomd asks System Events which app is in front, to put it back after showing a sign-in window. -->
+  <key>NSAppleEventsUsageDescription</key>
+  <string>bloomterm brings a browser sign-in window forward, and then gives focus back to the app you were using.</string>
+</dict>
+</plist>

@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  # tsx and vitest need esbuild's native binary.
+  esbuild: true
+  # SQLite driver: downloads a prebuilt binary, or compiles one.
+  better-sqlite3: true

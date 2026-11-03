@@ -1,0 +1,26 @@
+{
+  "name": "bloomterm",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bt": "tsx apps/cli/src/main.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:webkit": "BLOOMTERM_UI_BROWSER=webkit vitest run --project browser apps/web/test/ui.browser.test.ts",
+    "test:chrome:stop": "tsx test/shared-chrome.ts stop",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json",
+    "build:web": "pnpm --filter @bloomterm/web build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "esbuild": "0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

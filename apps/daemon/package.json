@@ -1,0 +1,28 @@
+{
+  "name": "@bloomterm/daemon",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@bloomterm/agent": "workspace:*",
+    "@bloomterm/browser": "workspace:*",
+    "@bloomterm/core": "workspace:*",
+    "@bloomterm/integrations": "workspace:*",
+    "@bloomterm/store": "workspace:*",
+    "@fastify/static": "^10.1.8",
+    "@fastify/websocket": "^11.3.4",
+    "croner": "^11.0.0",
+    "fastify": "^5.12.7",
+    "smol-toml": "^1.9.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "ws": "^8.22.0"
+  }
+}

@@ -1,0 +1,27 @@
+bloomterm
+Copyright (c) 2026 Herval Freire. Licensed under the MIT License (LICENSE).
+
+bloomterm includes, and its desktop app redistributes, third-party software under
+its own licenses. The full license texts come with each package (node_modules/*/LICENSE).
+Notices that those licenses require:
+
+TradingView Lightweight Charts™
+Copyright (c) 2025 TradingView, Inc. https://www.tradingview.com/
+Apache License 2.0. bloomterm's Help page carries this notice and the link.
+
+Playwright
+Copyright (c) Microsoft Corporation.
+Apache License 2.0. Contains code derived from the Puppeteer project
+(https://github.com/puppeteer/puppeteer), available under the Apache 2.0 license.
+
+SheetJS Community Edition
+Copyright (C) 2012-present SheetJS LLC. Apache License 2.0.
+
+Geist and Geist Mono
+Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font). SIL Open Font License 1.1.
+
+Node.js (bundled in the desktop app)
+Copyright Node.js contributors. MIT License, plus the licenses of its dependencies:
+https://github.com/nodejs/node/blob/main/LICENSE
+
+better-sqlite3 (MIT) and SQLite (public domain), bundled in the desktop app.

@@ -1,0 +1,15 @@
+{
+  "name": "@bloomterm/browser",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@bloomterm/core": "workspace:*",
+    "playwright-core": "^1.64.1",
+    "zod": "^4.6.7"
+  }
+}

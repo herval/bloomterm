@@ -1,0 +1,29 @@
+{
+  "name": "@bloomterm/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@bloomterm/core": "workspace:*",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "lightweight-charts": "^5.2.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@bloomterm/browser": "workspace:*",
+    "@bloomterm/daemon": "workspace:*",
+    "@bloomterm/integrations": "workspace:*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright-core": "^1.64.1",
+    "vite": "^8.3.5"
+  }
+}
