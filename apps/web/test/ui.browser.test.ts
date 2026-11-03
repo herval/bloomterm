@@ -232,6 +232,10 @@ describe('the app', () => {
     await detail.locator('.chips').first().getByRole('link', { name: /PETR4/ }).click();
     await expect.poll(() => page.url()).toMatch(/\/s\/PETR4$/);
     await expect.poll(() => page.locator('.newsrow').count()).toBe(2);
+    // A chip on a security's own news goes to the other security's page.
+    await page.locator('.newsrow .chips').first().getByRole('link', { name: /PETR3/ }).click();
+    await expect.poll(() => page.url()).toMatch(/\/s\/PETR3$/);
+    await expect.poll(() => page.locator('.sh-title h1').textContent()).toBe('PETR3');
   });
 
   it('writes the brief with your agent, and says why a mover moved', async () => {
