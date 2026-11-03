@@ -12,6 +12,10 @@ Codex for:
   site's API through your signed-in browser and tests against the live site. Its work goes into
   `~/.bloomterm/integrations` once you review and approve it, without touching bloomterm itself.
 
+![Today: the markets, net worth, the morning brief, movers, news and a heatmap](docs/screenshot.png)
+
+<sub>Demo data: real tickers, made-up prices, positions and headlines (`make screenshot`).</sub>
+
 [SPEC.md](SPEC.md) has the design: what it does, and why.
 
 > **Status: early, and built for one person's use.** It runs on Apple silicon Macs only. Working
@@ -83,6 +87,7 @@ pnpm install            # needs Node 22+ and Google Chrome
 pnpm test               # unit + headless Chrome against a local fake bank (incl. bloomd end to end)
 pnpm test:chrome:stop   # quit the test Chrome (see below)
 pnpm test:webkit        # the UI tests again in headless WebKit, the desktop app's engine
+make screenshot         # the README's screenshots, on demo data
 BLOOMTERM_HEADED_TESTS=1 pnpm vitest run --project headed   # shows real windows for ~20s
 ```
 
@@ -174,6 +179,8 @@ Pages, each with its own URL:
 | **Portfolio**, **Sources**, **Jobs**, **Settings**, **Help** | positions; integrations, sign-ins and news feeds; job history; API keys and browser profiles; functions |
 | **News** (`/news`) | stories grouped across outlets: top, for you, latest, filings, search |
 | **Terminal** (`/terminal`) | the original four-panel board with its command line |
+
+![A security's page: the chart, why it moved, your position and key stats](docs/screenshot-security.png)
 
 **⌘K** (Ctrl+K) finds anything: tickers or company names, pages, actions, and the terminal's
 mnemonics (`PETR4 GP 1Y` opens PETR4's page on the 1Y chart). On a page, just start typing.

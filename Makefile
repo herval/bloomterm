@@ -22,7 +22,7 @@ WEB_SRC := $(shell find apps/web/src apps/web/public packages/core/src -type f 2
 wait_for_bloomd = until link=$$($(BT) ui --print 2>/dev/null); do kill -0 $$bloomd 2>/dev/null || exit 1; sleep 1; done
 
 .PHONY: help check install build run dev daemon ui status logs daemon-install daemon-uninstall \
-	app app-install release release-build test test-unit test-webkit test-headed typecheck chrome-stop clean
+	app app-install release release-build test test-unit test-webkit test-headed typecheck chrome-stop screenshot clean
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  make %-17s %s\n", $$1, $$2 }'
@@ -122,6 +122,9 @@ typecheck: $(DEPS) ## tsc over everything, web app included
 
 chrome-stop: ## quit the shared test Chrome
 	pnpm test:chrome:stop
+
+screenshot: $(DEPS) ## the README's screenshots, on demo data, in the shared test Chrome → docs/
+	node_modules/.bin/tsx apps/web/scripts/screenshot.ts
 
 clean: ## remove the built web app, the bundle and the desktop app's build
 	rm -rf apps/web/dist dist apps/desktop/src-tauri/target
