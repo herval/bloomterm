@@ -22,7 +22,7 @@ An Apple silicon Mac with Rust, `gh` signed in, and:
 | A Developer ID Application certificate in the keychain | the maintainer's | `BLOOMTERM_SIGNING_IDENTITY` |
 | A notarytool profile in the keychain | `bloomterm-notary` | `BLOOMTERM_NOTARY_PROFILE` |
 | The updater's private key, with its password in the keychain (service `bloomterm-updater-key`) | `~/.tauri/bloomterm-updater.key` | `BLOOMTERM_UPDATER_KEY` |
-| A repo you can publish releases to | `herval/bloomterm-releases` | `BLOOMTERM_RELEASES_REPO` |
+| A repo you can publish releases to | `herval/bloomterm` | `BLOOMTERM_RELEASES_REPO` |
 
 The notarytool profile, made once:
 
@@ -34,7 +34,7 @@ Back up the updater's private key and its password. Without them, installed apps
 
 ## Releasing from a fork
 
-Official builds update from `herval/bloomterm-releases`, and only accept updates signed with its
+Official builds update from `herval/bloomterm`'s releases, and only accept updates signed with its
 key. To ship your own builds:
 
 1. Make an updater key pair: `cd apps/desktop && node_modules/.bin/tauri signer generate -w ~/.tauri/bloomterm-updater.key`.

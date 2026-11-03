@@ -1020,8 +1020,8 @@ until someone asks.
   against the public key in `tauri.release.conf.json`, and `requireSignedVersion` makes the signature
   name the version, so an old release can't be served as a new one. Restarting stops the bloomd the
   app started (RunEvent::Exit). Losing the private key means installed apps can't update anymore.
-- **Published** to a releases-only repo (`herval/bloomterm-releases` for official builds;
-  `BLOOMTERM_RELEASES_REPO` for your own): a draft release with `bloomterm.dmg`, `bloomterm.app.tar.gz` and `latest.json`, then
+- **Published** as a release of this repo (`herval/bloomterm`, or `BLOOMTERM_RELEASES_REPO` for
+  your own), tagged `v<version>`: a draft release with `bloomterm.dmg`, `bloomterm.app.tar.gz` and `latest.json`, then
   made public at once. People download `…/releases/latest/download/bloomterm.dmg`.
 - A release is the version in `tauri.conf.json`; publishing needs a clean tree, and a version not
   released yet. `--no-publish` stops before the upload, `--no-notarize` after the signature checks.
@@ -1441,14 +1441,16 @@ most CDBs, LCIs, and LCAs) are stored with `raw_symbol` and counted in `PORT` to
 ### Decided (2026-11-01)
 
 - **A notarized DMG that updates itself.** Official releases are signed with the maintainer's
-  Developer ID, notarized, and published to `herval/bloomterm-releases`, which holds only release
-  files and is what installed apps update from (§8.7). No Mac App Store: its sandbox would block
+  Developer ID, notarized, and published as releases of `herval/bloomterm`, which is what
+  installed apps update from (§8.7). No Mac App Store: its sandbox would block
   driving Chrome, running the agent CLI, `~/.bloomterm` and the LaunchAgent.
 
 ### Decided (2026-11-03)
 
 - **Open source, under the MIT License.** Integrations for specific banks and brokers stay out of
   the repo: each person builds their own with EVOLVE, in their data folder.
+- **Releases live in the source repo.** No separate releases-only repo: the DMG and the updater's
+  files are attached to `herval/bloomterm`'s releases.
 
 ### Still open
 

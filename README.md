@@ -42,7 +42,7 @@ You need:
   are no model API keys:
   `npm i -g @anthropic-ai/claude-code && claude` (or `npm i -g @openai/codex && codex login`).
 
-**The app.** Download [bloomterm.dmg](https://github.com/herval/bloomterm-releases/releases/latest/download/bloomterm.dmg),
+**The app.** Download [bloomterm.dmg](https://github.com/herval/bloomterm/releases/latest/download/bloomterm.dmg),
 open it and drag bloomterm to Applications. It's signed and notarized, and updates itself from the
 menu bar. The first time, Setup checks for Chrome and an agent CLI and says what's missing.
 
@@ -152,7 +152,7 @@ the details.
 
 ### Releases
 
-Official builds are on [herval/bloomterm-releases](https://github.com/herval/bloomterm-releases):
+Official builds are on this repo's [Releases](https://github.com/herval/bloomterm/releases):
 signed with a Developer ID, notarized by Apple, and updating themselves from the menu bar (Restart
 to Update). [RELEASING.md](RELEASING.md) has how to cut one, or sign your own from a fork.
 

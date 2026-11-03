@@ -14,6 +14,7 @@
 #     (service bloomterm-updater-key). Its public key is in tauri.release.conf.json: lose the
 #     private key and installed apps can't update anymore.
 #   - gh, signed in, and allowed to publish releases on               $BLOOMTERM_RELEASES_REPO
+#     (this repo, herval/bloomterm, unless you set it)
 #
 # A release v<version> on the releases repo holds:
 #   bloomterm.dmg          what people download: …/releases/latest/download/bloomterm.dmg
@@ -25,7 +26,7 @@ cd "$(dirname "$0")/.."
 
 IDENTITY=${BLOOMTERM_SIGNING_IDENTITY:-"Developer ID Application: Herval Albuquerque (N57JK357GW)"}
 PROFILE=${BLOOMTERM_NOTARY_PROFILE:-bloomterm-notary}
-REPO=${BLOOMTERM_RELEASES_REPO:-herval/bloomterm-releases}
+REPO=${BLOOMTERM_RELEASES_REPO:-herval/bloomterm}
 KEY=${BLOOMTERM_UPDATER_KEY:-$HOME/.tauri/bloomterm-updater.key}
 
 publish=1
