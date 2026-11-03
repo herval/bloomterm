@@ -14,8 +14,10 @@ concurrency:
 
 jobs:
   check:
-    # bloomterm is macOS-only (Keychain, launchd, the desktop app), and its tests assume a Mac.
-    runs-on: macos-latest
+    # bloomterm runs on macOS (Keychain, launchd, the desktop app), but what CI checks doesn't need
+    # a Mac: the unit tests fake the Mac parts. Linux runners start right away; macOS ones can queue
+    # for a long time or never get a machine.
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
