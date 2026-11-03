@@ -1,6 +1,6 @@
-// The README's screenshots: the app on made-up demo data, in a throwaway data folder, so nothing
+// The README's screenshot: the app on made-up demo data, in a throwaway data folder, so nothing
 // of yours can show up. It drives the shared headless Chrome the tests use (no windows).
-//   make screenshot   →   docs/screenshot.png, docs/screenshot-security.png
+//   make screenshot   →   docs/screenshot.png
 // SCREENSHOT_DEBUG=<file.png> saves what the page showed when a step times out.
 import { chmod, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -207,16 +207,7 @@ try {
   await brief.locator('.brief-body', { hasText: 'Chipmakers' }).waitFor();
   await page.waitForTimeout(1_500);
   await page.screenshot({ path: join(docs, 'screenshot.png') });
-
-  // Shorter, since a security's page ends sooner.
-  await page.setViewportSize({ width: 1440, height: 780 });
-  await page.goto(`${base}/s/NVDA?range=1Y`);
-  await page.locator('.bigchart canvas').first().waitFor();
-  await page.getByRole('button', { name: 'Explain' }).click();
-  await page.getByText('Chipmakers rallied').waitFor();
-  await page.waitForTimeout(1_500);
-  await page.screenshot({ path: join(docs, 'screenshot-security.png') });
-  console.log(`screenshot: ${join(docs, 'screenshot.png')}, ${join(docs, 'screenshot-security.png')}`);
+  console.log(`screenshot: ${join(docs, 'screenshot.png')}`);
 } catch (err) {
   if (process.env.SCREENSHOT_DEBUG) {
     await page.screenshot({ path: process.env.SCREENSHOT_DEBUG });

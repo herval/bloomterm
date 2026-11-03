@@ -123,7 +123,7 @@ typecheck: $(DEPS) ## tsc over everything, web app included
 chrome-stop: ## quit the shared test Chrome
 	pnpm test:chrome:stop
 
-screenshot: $(DEPS) ## the README's screenshots, on demo data, in the shared test Chrome → docs/
+screenshot: $(DEPS) ## the README's screenshot, on demo data, in the shared test Chrome → docs/screenshot.png
 	node_modules/.bin/tsx apps/web/scripts/screenshot.ts
 
 clean: ## remove the built web app, the bundle and the desktop app's build
