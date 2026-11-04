@@ -163,7 +163,8 @@ describe('the brief and why things moved', () => {
   });
 
   it('writes the brief once its time has passed on a weekday, and retries a failure later', async () => {
-    let now = new Date(2026, 10, 4, 6, 30); // a Wednesday, before 07:00
+    // In the past: the test above writes today's real brief to this store, and a brief is one per day.
+    let now = new Date(2025, 10, 5, 6, 30); // a Wednesday, before 07:00
     let runs = 0;
     const insights = new InsightService({
       store: daemon.store,
@@ -178,14 +179,14 @@ describe('the brief and why things moved', () => {
       now: () => now,
     });
     expect(await insights.tick()).toBeNull();
-    now = new Date(2026, 10, 4, 7, 5);
+    now = new Date(2025, 10, 5, 7, 5);
     expect(await insights.tick()).toMatchObject({ status: 'error', error: 'boom' });
-    now = new Date(2026, 10, 4, 7, 20);
+    now = new Date(2025, 10, 5, 7, 20);
     expect(await insights.tick()).toBeNull();
-    now = new Date(2026, 10, 4, 7, 40);
+    now = new Date(2025, 10, 5, 7, 40);
     expect(await insights.tick()).toMatchObject({ status: 'done', text: '- ok' });
     expect(await insights.tick()).toBeNull();
-    now = new Date(2026, 10, 7, 9, 0); // Saturday
+    now = new Date(2025, 10, 8, 9, 0); // Saturday
     expect(await insights.tick()).toBeNull();
     expect(runs).toBe(2);
   });
