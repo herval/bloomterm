@@ -30,7 +30,8 @@ const newHost = () =>
   });
 
 describe('openPlain', () => {
-  it('starts Chrome on the profile with nothing attached, and holds jobs until it quits', async () => {
+  // Chrome's stand-in is a shell script, and Windows only starts a real .exe here.
+  it.skipIf(process.platform === 'win32')('starts Chrome on the profile with nothing attached, and holds jobs until it quits', async () => {
     const host = newHost();
     const rt = host.runtime('finance');
     const { exited } = await host.openPlain('finance', { url: 'https://example.com/' });

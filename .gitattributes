@@ -1,0 +1,7 @@
+# LF everywhere, Windows checkouts included: fixtures, folder hashes and scripts have to match the
+# Mac's byte for byte.
+* text=auto eol=lf
+
+*.icns binary
+*.ico binary
+*.png binary

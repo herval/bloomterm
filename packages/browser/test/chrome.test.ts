@@ -6,7 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BrowserHost, ChromeNotFoundError, consoleLogger, findChrome } from '../src/index.ts';
 
 // Where bloomterm finds Chrome, with made-up app folders and a made-up Spotlight. The "Chrome"
-// inside each is a shell script, so nothing real is launched.
+// inside each is a shell script, so nothing real is launched. These are the Mac's lookups, so they
+// don't run on Windows.
 
 let root: string;
 const apps = () => join(root, 'Applications');
@@ -32,7 +33,7 @@ afterAll(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('findChrome', () => {
+describe.skipIf(process.platform === 'win32')('findChrome', () => {
   it('finds Chrome in ~/Applications when it isn’t in /Applications', async () => {
     const app = await fakeApp(userApps());
     const found = await findChrome({ dirs: [apps(), userApps()], spotlight: none });
@@ -74,7 +75,7 @@ describe('findChrome', () => {
   });
 });
 
-describe('the browser host', () => {
+describe.skipIf(process.platform === 'win32')('the browser host', () => {
   it('launches the Chrome config.toml names, and says so when it isn’t there', async () => {
     const app = await fakeApp(join(root, 'Configured'));
     const home = join(root, 'bt-home');

@@ -15,7 +15,8 @@ let daemon: Daemon;
 
 /** Starts `bt mcp` the way an agent does, and talks JSON-RPC to it. */
 function mcp(env: Record<string, string> = {}, args: string[] = []) {
-  const child: ChildProcess = spawn(join(ROOT, 'node_modules/.bin/tsx'), [join(ROOT, 'apps/cli/src/mcp-main.ts'), ...args], { env: { ...process.env, BLOOMTERM_HOME: home, ...env }, stdio: ['pipe', 'pipe', 'inherit'] });
+  // Node itself, not node_modules/.bin/tsx: that's a .cmd on Windows, and a wrapper around a second process.
+  const child: ChildProcess = spawn(process.execPath, ['--import', 'tsx', join(ROOT, 'apps/cli/src/mcp-main.ts'), ...args], { cwd: ROOT, env: { ...process.env, BLOOMTERM_HOME: home, ...env }, stdio: ['pipe', 'pipe', 'inherit'] });
   const waiting = new Map<number, (m: any) => void>();
   createInterface({ input: child.stdout! }).on('line', (l) => {
     const m = JSON.parse(l);

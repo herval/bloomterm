@@ -1,6 +1,6 @@
 import { chmod, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { agentEnv, claude, codex, runAgent, SIGN_IN_HINT, signedIn, type AgentEvent, type AgentRunOptions } from '../src/index.ts';
@@ -112,7 +112,7 @@ describe('runAgent', () => {
     expect(await runAgent(cli, { ...chat, cwd: tmpdir(), prompt: 'please fail' })).toMatchObject({ ok: false, error: 'the model is unavailable' });
 
     const dir = await mkdtemp(join(tmpdir(), 'bt-agent-'));
-    const slow = join(dir, 'claude');
+    const slow = join(dir, 'claude.mjs');
     await writeFile(slow, `#!/usr/bin/env node\nconsole.log(JSON.stringify({type:'system',subtype:'init',session_id:'s'}));\nsetTimeout(() => {}, 60000);\n`);
     await chmod(slow, 0o755);
     const ac = new AbortController();
@@ -126,7 +126,7 @@ describe('runAgent', () => {
     try {
       const env = agentEnv({ X: '1' });
       expect(env.CLAUDECODE).toBeUndefined();
-      expect(env.PATH!.split(':')[0]).toBe(dirname(process.execPath));
+      expect(env.PATH!.split(delimiter)[0]).toBe(dirname(process.execPath));
       expect(env.X).toBe('1');
     } finally {
       delete process.env.CLAUDECODE;
@@ -135,28 +135,32 @@ describe('runAgent', () => {
 });
 
 describe('signedIn', () => {
-  /** A stand-in CLI that answers its sign-in question with `body` (a shell snippet). */
-  async function cli(kind: 'claude' | 'codex', body: string) {
+  /** A stand-in CLI that answers `asked` with `out`, and anything else with exit code 2. */
+  async function cli(kind: 'claude' | 'codex', asked: string, out: { stdout?: string; stderr?: string; code?: number }) {
     const dir = await mkdtemp(join(tmpdir(), 'bt-auth-'));
-    const path = join(dir, kind);
-    await writeFile(path, `#!/bin/sh\n${body}\n`);
+    const path = join(dir, `${kind}.mjs`);
+    const script = `if (process.argv.slice(2).join(' ') !== ${JSON.stringify(asked)}) process.exit(2);
+const out = ${JSON.stringify(out)};
+if (out.stdout) console.log(out.stdout);
+if (out.stderr) console.error(out.stderr);
+process.exitCode = out.code ?? 0;`;
+    await writeFile(path, `#!/usr/bin/env node\n${script}\n`);
     await chmod(path, 0o755);
     return { kind, path, version: 'fake' };
   }
 
   it('asks Claude Code, and keeps only whether it is signed in', async () => {
-    const yes = await cli('claude', `[ "$1 $2 $3" = "auth status --json" ] && echo '{"loggedIn":true,"email":"me@example.com"}' && exit 0; exit 2`);
-    expect(await signedIn(yes)).toBe(true);
-    const no = await cli('claude', `echo '{"loggedIn":false}'; exit 1`);
-    expect(await signedIn(no)).toBe(false);
-    const old = await cli('claude', `echo "error: unknown command 'auth'" >&2; exit 1`);
-    expect(await signedIn(old)).toBeNull();
+    const asked = 'auth status --json';
+    expect(await signedIn(await cli('claude', asked, { stdout: '{"loggedIn":true,"email":"me@example.com"}' }))).toBe(true);
+    expect(await signedIn(await cli('claude', asked, { stdout: '{"loggedIn":false}', code: 1 }))).toBe(false);
+    expect(await signedIn(await cli('claude', asked, { stderr: "error: unknown command 'auth'", code: 1 }))).toBeNull();
     expect(SIGN_IN_HINT.claude).toBe('claude auth login');
   });
 
   it('asks Codex', async () => {
-    expect(await signedIn(await cli('codex', `[ "$1 $2" = "login status" ] && echo "Logged in using ChatGPT" && exit 0; exit 2`))).toBe(true);
-    expect(await signedIn(await cli('codex', `echo "Not logged in"; exit 1`))).toBe(false);
-    expect(await signedIn(await cli('codex', `echo "unrecognized subcommand 'status'" >&2; exit 2`))).toBeNull();
+    const asked = 'login status';
+    expect(await signedIn(await cli('codex', asked, { stdout: 'Logged in using ChatGPT' }))).toBe(true);
+    expect(await signedIn(await cli('codex', asked, { stdout: 'Not logged in', code: 1 }))).toBe(false);
+    expect(await signedIn(await cli('codex', asked, { stderr: "unrecognized subcommand 'status'", code: 2 }))).toBeNull();
   });
 });

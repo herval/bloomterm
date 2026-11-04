@@ -1,0 +1,50 @@
+name: Windows
+
+# The Windows port's checks, on a real Windows machine. Its own workflow so docs-only pushes skip it:
+# Windows minutes bill at twice the Linux rate while the repo is private.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE', 'NOTICE']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    # Windows isn't supported yet, so a failure here doesn't fail the run. Every check runs even if
+    # an earlier one failed, to show everything left in one go. Drop both once all of them pass.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      # The pnpm version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+        if: ${{ !cancelled() }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      # tauri-build wants these to exist; cargo check never runs them or packs them.
+      - name: Stand in for the bundle and the Node binary
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          mkdir -p dist/bundle apps/desktop/src-tauri/binaries
+          touch apps/desktop/src-tauri/binaries/node-x86_64-pc-windows-msvc.exe
+      - run: cargo check --locked --features updater
+        if: ${{ !cancelled() }}
+        working-directory: apps/desktop/src-tauri
