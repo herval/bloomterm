@@ -45,7 +45,7 @@ function WaitFor([int] $seconds, [scriptblock] $test) {
 
 function Running { Get-Process bloomterm, node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$app\*" } }
 
-function Bloomd { Get-Content -Raw (Join-Path $data 'state\bloomd.json') | ConvertFrom-Json }
+function Bloomd { Get-Content -Raw -ErrorAction Stop (Join-Path $data 'state\bloomd.json') | ConvertFrom-Json }
 
 function Healthy { (Invoke-RestMethod -TimeoutSec 3 "http://127.0.0.1:$((Bloomd).port)/api/health").name -eq 'bloomd' }
 
@@ -68,6 +68,13 @@ function StartApp {
 function Stopped { WaitFor 20 { -not (Running) } }
 
 function Install { (Start-Process $Installer -ArgumentList '/S' -Wait -PassThru).ExitCode -eq 0 }
+
+# The process's main window won't do: the app always has invisible ones of its own.
+Add-Type -Namespace Win32 -Name Window -MemberDefinition @'
+[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string windowClass, string title);
+[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
+'@
+function WindowShows { [Win32.Window]::IsWindowVisible([Win32.Window]::FindWindow([NullString]::Value, 'bloomterm')) }
 
 function Screenshot([string] $name) {
   Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -124,14 +131,14 @@ Check 'Restart bloomd restarts it' {
 }
 
 Write-Host '--- closing the window'
-# By title: the app always has an invisible window, so it always has a main window handle.
+Check 'it shows before' { WindowShows }
 Check 'it hides, and bloomd keeps running' {
   (Get-Process bloomterm).CloseMainWindow() | Out-Null
   Start-Sleep -Seconds 2
   Screenshot 'closed' | Out-Null
-  (Healthy) -and -not (Get-Process bloomterm).MainWindowTitle
+  (Healthy) -and -not (WindowShows)
 }
-Check 'opening the app again shows it' { Start-Process $exe; WaitFor 10 { (Get-Process bloomterm).MainWindowTitle -eq 'bloomterm' } }
+Check 'opening the app again shows it' { Start-Process $exe; WaitFor 10 { WindowShows } }
 
 Write-Host '--- quitting'
 Check 'Quit stops the app and bloomd' { & $exe --menu=quit; Stopped }
