@@ -205,6 +205,24 @@ describe('the app', () => {
     expect(await page.locator('.chartcard').getByRole('button', { name: 'SMA' }).count()).toBe(0);
   });
 
+  it('keeps the keyboard in the ⌘K box', async () => {
+    const box = page.getByRole('textbox', { name: 'Search or ask' });
+    const inBox = () => box.evaluate((e) => e === document.activeElement);
+    await page.keyboard.press('Control+k');
+    await box.waitFor();
+
+    // Keys only work from the box. On the terminal, one that got past it would go to the panel behind.
+    await page.locator('.palette .pfoot').click();
+    expect(await inBox()).toBe(true);
+    await page.locator('.palette .lbl').first().click();
+    expect(await inBox()).toBe(true);
+    await page.keyboard.press('Tab');
+    expect(await inBox()).toBe(true);
+
+    await page.keyboard.press('Escape');
+    await expect.poll(() => page.locator('.palette').count()).toBe(0);
+  });
+
   it('finds securities and runs mnemonics from ⌘K', async () => {
     const input = page.getByRole('textbox', { name: 'Search or ask' });
     await page.keyboard.press('Control+k');

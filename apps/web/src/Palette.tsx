@@ -120,7 +120,16 @@ export function Palette({ initial, onClose, followed, held }: { initial: string;
   const ordered = GROUPS.flatMap((g) => items.filter((i) => i.group === g));
   return (
     <div className="scrim" onMouseDown={onClose}>
-      <div className="palette" role="dialog" aria-label="Search and commands" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="palette"
+        role="dialog"
+        aria-label="Search and commands"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          // Its keys work only from the box, so a click in here leaves the focus there.
+          if (e.target !== input.current) e.preventDefault();
+        }}
+      >
         <div className="pinput">
           <Icon name="search" size={16} />
           <input
@@ -137,9 +146,9 @@ export function Palette({ initial, onClose, followed, held }: { initial: string;
                 e.preventDefault();
                 setSel((s) => (ordered.length ? (s + (e.key === 'ArrowDown' ? 1 : -1) + ordered.length) % ordered.length : 0));
               }
-              if (e.key === 'Tab' && secs[0] && t) {
+              if (e.key === 'Tab') {
                 e.preventDefault();
-                setText(`${ticker(secs[0])} `);
+                if (secs[0] && t) setText(`${ticker(secs[0])} `);
               }
               if (e.key === 'Enter') {
                 e.preventDefault();
