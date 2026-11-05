@@ -977,7 +977,8 @@ the Mac that runs it, with `make app`: Apple silicon, ad-hoc signed, no updater.
 - When bloomd exits, the app starts it again: right away on exit code 75, bloomd asking for a restart
   (Restart bloomd, after you approve an EVOLVE run); after a second otherwise. After three crashes in
   a minute it stops, and the window shows why, with the end of the log, until you choose Restart bloomd.
-- Quit stops the bloomd it started: SIGTERM, then SIGKILL after 8 s.
+- Quit stops the bloomd it started: SIGTERM (on Windows, which has none, `POST /api/shutdown`), then
+  a kill after 8 s.
 
 **The window.**
 - It opens on the app's own page ("Starting bloomd…", or what went wrong), then on bloomd's web app
@@ -996,11 +997,18 @@ the Mac that runs it, with `make app`: Apple silicon, ad-hoc signed, no updater.
 
 **The menu bar.** Open bloomterm, Ask…, Sources, bloomd's state, Restart bloomd, Open at Login (a
 LaunchAgent that starts the app without its window), Quit bloomterm. It runs once: opening it again
-shows the window.
+shows the window, and `bloomterm --quit` quits the one that's running. On Windows this is the tray
+icon's menu, on a right click; a click opens the window.
 
 **Signing.** `make app` signs ad-hoc (`signingIdentity: "-"`), without the hardened runtime, so that
 app runs only on the Mac that built it. `NSAppleEventsUsageDescription` is set because bloomd asks
 System Events which app is in front, to give focus back after a sign-in window.
+
+**Windows.** The same app in a per-user NSIS installer, unsigned for now, with WebView2 in place of
+WebKit and `%LOCALAPPDATA%\bloomterm` as its folder. An installer run over the running app, or the
+uninstaller, closes it through Windows' Restart Manager, and that stops its bloomd as Quit does.
+GitHub builds the installer on each change to the app (`windows-app.yml`) and
+`scripts/windows-smoke.ps1` installs and uses it there.
 
 **Releases, for other Macs** (`make release`, `scripts/release.sh`). Apple silicon only; Intel waits
 until someone asks.

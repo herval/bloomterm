@@ -70,10 +70,10 @@ foreach ($file in 'bloomterm.exe', 'node.exe', 'uninstall.exe', 'bundle\bt.mjs',
   Check "it installs $file" { Test-Path (Join-Path $app $file) }
 }
 Check 'the Start menu entry has the id toasts show under' {
-  $apps = (New-Object -ComObject Shell.Application).NameSpace('shell:AppsFolder').Items()
-  $id = ($apps | Where-Object Name -Like '*bloomterm*').Path
-  Write-Host "Start menu: $id"
-  Get-ChildItem (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs') -Recurse -Filter '*bloomterm*' | ForEach-Object { Write-Host $_.FullName }
+  $programs = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+  $link = (New-Object -ComObject Shell.Application).NameSpace($programs).ParseName('bloomterm.lnk')
+  $id = $link.ExtendedProperty('System.AppUserModel.ID')
+  Write-Host "Start menu id: $id"
   $id -eq 'app.bloomterm.desktop'
 }
 
