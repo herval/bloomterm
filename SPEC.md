@@ -906,8 +906,8 @@ defineFunction({
 - **SQLite**, via `better-sqlite3`. At personal scale, about 25M daily bars (5k securities × 20 years)
   plus a year of 1-minute bars for watchlists fits comfortably.
 - **Parquet/DuckDB** export (`bt export`) for heavy analysis. This is outside the hot path.
-- **Secrets.** API keys live in the macOS Keychain (service `bloomterm`), and `config.toml` refers to
-  them as `keychain:massive`.
+- **Secrets.** API keys live in the macOS Keychain or Windows Credential Manager (service `bloomterm`),
+  and `config.toml` refers to them as `keychain:massive`.
 
 ### 8.5 Tech stack
 
@@ -1305,9 +1305,9 @@ most CDBs, LCIs, and LCAs) are stored with `raw_symbol` and counted in `PORT` to
   - Remote/phone access (e.g. via Tailscale with an auth proxy) comes in P2.
 - **Browser profiles are credentials.** Their directories are `0700`. FileVault is recommended. They are
   excluded from any sync tool. `bt profile wipe <name>` signs you out of everything in a profile.
-- **API keys** are kept in the Keychain and never in config or logs. `SET` writes them through bloomd
-  (`security -i`, so the value never shows in the process list); the API only reports whether
-  each key is set, never its value.
+- **API keys** are kept in the Keychain or Credential Manager and never in config or logs. `SET` writes
+  them through bloomd (on a Mac with `security -i`, on Windows with a native call, so the value never
+  shows in the process list); the API only reports whether each key is set, never its value.
 - **UI sign-in.** `bt ui` asks bloomd for a one-time code (60s, single use) and opens
   `http://127.0.0.1:<port>/#code=…`; the page trades it for the token and keeps it in localStorage.
   No cookies, since cookies on 127.0.0.1 are shared by every port. bloomd refuses cross-origin

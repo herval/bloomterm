@@ -5,7 +5,8 @@
 //
 // The folder (apps/daemon/src/layout.ts finds its files by these names):
 //   bt.mjs, mcp.mjs     bt and `bt mcp`, bundled by esbuild
-//   node_modules/       better-sqlite3 (a native addon) and playwright-core (it reads its own files)
+//   node_modules/       better-sqlite3 (a native addon) and playwright-core (it reads its own files);
+//                       on Windows, @napi-rs/keyring too (a native addon, for Credential Manager)
 //   web/                the built web app
 //   integrations-src/   the built-ins' sources, what EVOLVE starts from
 //   EVOLVE.md           EVOLVE's routine
@@ -21,7 +22,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const out = resolve(process.argv[2] ?? join(root, 'dist/bundle'));
 
 /** Packages left out of the bundle, copied whole into node_modules/. */
-const EXTERNAL = ['better-sqlite3', 'playwright-core'];
+const EXTERNAL = ['better-sqlite3', 'playwright-core', '@napi-rs/keyring'];
 /** ws's optional speedups, which it does without. */
 const OPTIONAL = ['bufferutil', 'utf-8-validate'];
 
@@ -72,6 +73,12 @@ copy(sqlite, join(out, 'node_modules/better-sqlite3'), (p) => {
 });
 if (!existsSync(join(out, 'node_modules/better-sqlite3/prebuilds', addon))) throw new Error(`better-sqlite3 has no prebuilt addon for ${addon}`);
 copy(packageDir('playwright-core', join(root, 'packages/browser')), join(out, 'node_modules/playwright-core'));
+if (process.platform === 'win32') {
+  const keyring = packageDir('@napi-rs/keyring', join(root, 'apps/daemon'));
+  const addon = `@napi-rs/keyring-win32-${process.arch}-msvc`;
+  copy(keyring, join(out, 'node_modules/@napi-rs/keyring'));
+  copy(packageDir(addon, keyring), join(out, 'node_modules', addon));
+}
 
 copy(web, join(out, 'web'));
 copy(join(root, 'packages/integrations/EVOLVE.md'), join(out, 'EVOLVE.md'));

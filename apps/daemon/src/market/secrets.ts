@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import type { SecretLookup } from '@bloomterm/integrations';
 
 const run = promisify(execFile);
+const SERVICE = 'bloomterm';
 
 /** API keys are short tokens; anything with spaces or quotes is a paste mistake. */
 export const SECRET_VALUE = /^[A-Za-z0-9._~+/=-]{8,256}$/;
@@ -17,23 +18,56 @@ export interface SecretStore {
 
 const envName = (name: string) => `BLOOMTERM_SECRET_${name.toUpperCase().replace(/-/g, '_')}`;
 
-/**
- * API keys live in the macOS Keychain under service `bloomterm` (SPEC §8.4).
- * `BLOOMTERM_SECRET_<NAME>` (e.g. BLOOMTERM_SECRET_ALPACA_KEY_ID) overrides it.
- * A missing key is looked up again after a minute, so adding one by hand doesn't need a restart.
- */
-export function keychainStore(): SecretStore {
-  const found = new Map<string, string>();
-  const missingUntil = new Map<string, number>();
+/** Where this system keeps passwords, under service `bloomterm`. */
+interface Vault {
+  /** Null when there's no such key, or it can't be read. */
+  read(name: string): Promise<string | null>;
+  write(name: string, value: string): Promise<void>;
+  remove(name: string): Promise<void>;
+}
 
-  async function read(name: string): Promise<string | null> {
+const macKeychain: Vault = {
+  async read(name) {
     try {
-      const { stdout } = await run('/usr/bin/security', ['find-generic-password', '-s', 'bloomterm', '-a', name, '-w'], { timeout: 5_000 });
+      const { stdout } = await run('/usr/bin/security', ['find-generic-password', '-s', SERVICE, '-a', name, '-w'], { timeout: 5_000 });
       return stdout.trim() || null;
     } catch {
       return null;
     }
-  }
+  },
+  // Through `security -i` on stdin, so the key never shows up in the process list.
+  write: (name, value) =>
+    new Promise<void>((resolve, reject) => {
+      const child = spawn('/usr/bin/security', ['-i'], { stdio: ['pipe', 'ignore', 'pipe'] });
+      let stderr = '';
+      child.stderr.on('data', (d) => (stderr += d));
+      child.on('error', reject);
+      child.on('close', (code) => (code === 0 && !stderr.trim() ? resolve() : reject(new Error(`Keychain refused the key: ${stderr.trim() || `exit ${code}`}`))));
+      child.stdin.end(`add-generic-password -U -s ${SERVICE} -a ${name} -l ${SERVICE}-${name} -w ${value}\n`);
+    }),
+  async remove(name) {
+    await run('/usr/bin/security', ['delete-generic-password', '-s', SERVICE, '-a', name], { timeout: 5_000 }).catch(() => {});
+  },
+};
+
+// Windows Credential Manager. No Windows command reads a password back, so this is a native addon, loaded only here.
+const entry = async (name: string) => new (await import('@napi-rs/keyring')).AsyncEntry(SERVICE, name);
+const credentialManager: Vault = {
+  read: async (name) => (await entry(name)).getPassword().catch(() => null),
+  write: async (name, value) => (await entry(name)).setPassword(value),
+  async remove(name) {
+    await (await entry(name)).deletePassword().catch(() => {});
+  },
+};
+
+/**
+ * API keys live in the macOS Keychain or Windows Credential Manager (SPEC §8.4).
+ * `BLOOMTERM_SECRET_<NAME>` (e.g. BLOOMTERM_SECRET_ALPACA_KEY_ID) overrides it.
+ * A missing key is looked up again after a minute, so adding one by hand doesn't need a restart.
+ */
+export function keychainStore(vault = process.platform === 'win32' ? credentialManager : macKeychain): SecretStore {
+  const found = new Map<string, string>();
+  const missingUntil = new Map<string, number>();
 
   async function get(name: string): Promise<string | null> {
     const env = process.env[envName(name)];
@@ -41,7 +75,7 @@ export function keychainStore(): SecretStore {
     const hit = found.get(name);
     if (hit) return hit;
     if ((missingUntil.get(name) ?? 0) > Date.now()) return null;
-    const value = await read(name);
+    const value = await vault.read(name);
     if (value) found.set(name, value);
     else missingUntil.set(name, Date.now() + 60_000);
     return value;
@@ -55,22 +89,14 @@ export function keychainStore(): SecretStore {
     },
     async set(name, value) {
       if (!SECRET_VALUE.test(value)) throw new Error('that doesn\'t look like an API key (no spaces or quotes, 8–256 characters)');
-      // Through `security -i` on stdin, so the key never shows up in the process list.
-      await new Promise<void>((resolve, reject) => {
-        const child = spawn('/usr/bin/security', ['-i'], { stdio: ['pipe', 'ignore', 'pipe'] });
-        let stderr = '';
-        child.stderr.on('data', (d) => (stderr += d));
-        child.on('error', reject);
-        child.on('close', (code) => (code === 0 && !stderr.trim() ? resolve() : reject(new Error(`Keychain refused the key: ${stderr.trim() || `exit ${code}`}`))));
-        child.stdin.end(`add-generic-password -U -s bloomterm -a ${name} -l bloomterm-${name} -w ${value}\n`);
-      });
+      await vault.write(name, value);
       // Trust, but read it back.
-      if ((await read(name)) !== value) throw new Error('the key was written but reads back differently; try again');
+      if ((await vault.read(name)) !== value) throw new Error('the key was written but reads back differently; try again');
       found.set(name, value);
       missingUntil.delete(name);
     },
     async remove(name) {
-      await run('/usr/bin/security', ['delete-generic-password', '-s', 'bloomterm', '-a', name], { timeout: 5_000 }).catch(() => {});
+      await vault.remove(name);
       found.delete(name);
       missingUntil.delete(name);
     },

@@ -15,6 +15,7 @@
     "@bloomterm/store": "workspace:*",
     "@fastify/static": "^10.1.8",
     "@fastify/websocket": "^11.3.4",
+    "@napi-rs/keyring": "^2.1.2",
     "croner": "^11.0.0",
     "diff": "^9.0.0",
     "fastify": "^5.12.7",
