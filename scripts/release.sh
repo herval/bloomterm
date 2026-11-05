@@ -1,10 +1,13 @@
 #!/bin/bash
-# Builds bloomterm.app for other Macs and publishes it (SPEC §8.7): signed with a Developer ID,
-# under the hardened runtime, notarized by Apple, in a DMG, with what the app's updater reads.
+# Builds bloomterm for other Macs and for Windows, and publishes it (SPEC §8.7). The Mac app is
+# signed with a Developer ID, under the hardened runtime, notarized by Apple, in a DMG. The Windows
+# installer is built by GitHub from the pushed commit, and isn't code signed. Both come with what
+# the app's updater reads, signed here.
 #
 #   scripts/release.sh                build v<version in tauri.conf.json>, then publish it
 #   scripts/release.sh --no-publish   everything but the upload, into dist/release/<version>/
-#   scripts/release.sh --no-notarize  only build and sign, to check the build (no upload either)
+#   scripts/release.sh --no-notarize  only build and sign the Mac app, to check the build (no upload)
+#   scripts/release.sh --no-windows   leave Windows out, so what you have needn't be pushed
 #
 # It needs, on this Mac:
 #   - the Developer ID Application certificate in the keychain     $BLOOMTERM_SIGNING_IDENTITY
@@ -18,8 +21,10 @@
 #
 # A release v<version> on the releases repo holds:
 #   bloomterm.dmg          what people download: …/releases/latest/download/bloomterm.dmg
-#   bloomterm.app.tar.gz   what the app's updater downloads (its signature is in latest.json)
-#   latest.json            what the app's updater checks: …/releases/latest/download/latest.json
+#   bloomterm-setup.exe    the same for Windows, and what the app's updater downloads there
+#   bloomterm.app.tar.gz   what the app's updater downloads on a Mac
+#   latest.json            what the app's updater checks: …/releases/latest/download/latest.json,
+#                          with the signature of each download
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -31,11 +36,13 @@ KEY=${BLOOMTERM_UPDATER_KEY:-$HOME/.tauri/bloomterm-updater.key}
 
 publish=1
 notarize=1
+windows=1
 for arg in "$@"; do
   case $arg in
     --no-publish) publish=0 ;;
-    --no-notarize) notarize=0; publish=0 ;;
-    *) echo "usage: scripts/release.sh [--no-publish | --no-notarize]" >&2; exit 2 ;;
+    --no-notarize) notarize=0; publish=0; windows=0 ;;
+    --no-windows) windows=0 ;;
+    *) echo "usage: scripts/release.sh [--no-publish | --no-notarize | --no-windows]" >&2; exit 2 ;;
   esac
 done
 
@@ -50,6 +57,7 @@ OUT=dist/release/$VERSION
 APP_BUILT=apps/desktop/src-tauri/target/release/bundle/macos/bloomterm.app
 LATEST_URL=https://github.com/$REPO/releases/latest/download/latest.json
 TARBALL_URL=https://github.com/$REPO/releases/download/$TAG/bloomterm.app.tar.gz
+SETUP_URL=https://github.com/$REPO/releases/download/$TAG/bloomterm-setup.exe
 
 # --- Everything this needs, checked before the long build. ---
 
@@ -72,6 +80,13 @@ commit=$(git rev-parse --short HEAD)
 say "bloomterm $VERSION ($commit)"
 rm -rf "$OUT"
 mkdir -p "$OUT"
+
+# --- Windows first: it's quick, and it's better to stop here than after Apple's notarization. ---
+
+if [ $windows = 1 ]; then
+  say "building the Windows installer"
+  scripts/windows-installer.sh "$LATEST_URL" "$OUT/bloomterm-setup.exe"
+fi
 
 # --- Build and sign. ---
 
@@ -163,9 +178,13 @@ spctl --assess --type open --context context:primary-signature "$OUT/bloomterm.d
 # --- What the updater reads. ---
 
 say "signing the update"
+sign_update() {
+  (cd apps/desktop && node_modules/.bin/tauri signer sign --app-version "$VERSION" -f "$KEY" -p "$KEY_PASSWORD" "../../$1" >/dev/null)
+  [ -s "$1.sig" ] || die "the updater's signature of $1 wasn't written"
+}
 COPYFILE_DISABLE=1 tar -C "$OUT" -czf "$OUT/bloomterm.app.tar.gz" bloomterm.app
-(cd apps/desktop && node_modules/.bin/tauri signer sign --app-version "$VERSION" -f "$KEY" -p "$KEY_PASSWORD" "../../$OUT/bloomterm.app.tar.gz" >/dev/null)
-[ -s "$OUT/bloomterm.app.tar.gz.sig" ] || die "the updater's signature wasn't written"
+sign_update "$OUT/bloomterm.app.tar.gz"
+[ $windows = 0 ] || sign_update "$OUT/bloomterm-setup.exe"
 
 previous=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)
 {
@@ -174,24 +193,32 @@ previous=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true
     echo
     git log --no-merges --format='- %s' "$previous..HEAD"
   else
-    echo "The first release of bloomterm for other Macs."
+    echo "The first release of bloomterm for other computers."
+  fi
+  if [ $windows = 1 ]; then
+    echo
+    echo "bloomterm-setup.exe SHA-256: $(shasum -a 256 "$OUT/bloomterm-setup.exe" | cut -d' ' -f1)"
   fi
 } >"$OUT/notes.md"
 
 node -e '
-  const [version, url, sigFile, notesFile, out] = process.argv.slice(1);
+  const [version, url, sigFile, setupUrl, setupSigFile, notesFile, out] = process.argv.slice(1);
   const fs = require("node:fs");
+  const download = (url, sigFile) => ({ signature: fs.readFileSync(sigFile, "utf8").trim(), url });
   const latest = {
     version,
     notes: fs.readFileSync(notesFile, "utf8").trim(),
     pub_date: new Date().toISOString(),
-    platforms: { "darwin-aarch64": { signature: fs.readFileSync(sigFile, "utf8").trim(), url } },
+    platforms: {
+      "darwin-aarch64": download(url, sigFile),
+      ...(fs.existsSync(setupSigFile) ? { "windows-x86_64": download(setupUrl, setupSigFile) } : {}),
+    },
   };
   fs.writeFileSync(out, JSON.stringify(latest, null, 2) + "\n");
-' "$VERSION" "$TARBALL_URL" "$OUT/bloomterm.app.tar.gz.sig" "$OUT/notes.md" "$OUT/latest.json"
+' "$VERSION" "$TARBALL_URL" "$OUT/bloomterm.app.tar.gz.sig" "$SETUP_URL" "$OUT/bloomterm-setup.exe.sig" "$OUT/notes.md" "$OUT/latest.json"
 
 if [ $publish = 0 ]; then
-  say "built $OUT: bloomterm.dmg, bloomterm.app.tar.gz, latest.json (not published)"
+  say "built $OUT (not published)"
   exit 0
 fi
 
@@ -201,7 +228,9 @@ fi
 say "publishing $TAG to $REPO"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git tag -a "$TAG" -m "bloomterm $VERSION"
 git push -q origin "$TAG"
-gh release create "$TAG" --repo "$REPO" --draft --title "bloomterm $VERSION" --notes-file "$OUT/notes.md" \
-  "$OUT/bloomterm.dmg" "$OUT/bloomterm.app.tar.gz" "$OUT/latest.json"
+assets=("$OUT/bloomterm.dmg" "$OUT/bloomterm.app.tar.gz" "$OUT/latest.json")
+[ $windows = 0 ] || assets+=("$OUT/bloomterm-setup.exe")
+gh release create "$TAG" --repo "$REPO" --draft --title "bloomterm $VERSION" --notes-file "$OUT/notes.md" "${assets[@]}"
 gh release edit "$TAG" --repo "$REPO" --draft=false >/dev/null
 say "released: https://github.com/$REPO/releases/latest/download/bloomterm.dmg"
+[ $windows = 0 ] || say "and: https://github.com/$REPO/releases/latest/download/bloomterm-setup.exe"
