@@ -53,8 +53,8 @@ describe('your integrations', () => {
       expect.objectContaining({ id: 'extra', state: 'on', running: true, replaces: false }),
       expect.objectContaining({ id: 'fake', state: 'on', running: true, replaces: true }),
     ]);
-    // Approvals are yours only.
-    expect((await import('node:fs')).statSync(join(home, 'state/integrations.json')).mode & 0o777).toBe(0o600);
+    // Approvals are yours only (Windows has no such modes).
+    if (process.platform !== 'win32') expect((await import('node:fs')).statSync(join(home, 'state/integrations.json')).mode & 0o777).toBe(0o600);
 
     // An edit you didn't approve turns it off, and the built-in comes back.
     await writeFile(join(mine, 'fake', 'notes.md'), 'an edit\n');

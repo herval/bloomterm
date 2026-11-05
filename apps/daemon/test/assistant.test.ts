@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { consoleLogger } from '@bloomterm/browser';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -98,7 +98,7 @@ describe('EVOLVE', () => {
     const r = await api('POST', '/api/evolve', { integration: 'newbank', goal: 'map the positions page' });
     expect(r.status).toBe(202);
     const { chatId, seq, dir } = r.body;
-    expect(dir).toMatch(new RegExp(`^${join(home, 'evolve', 'newbank-')}\\d{14}$`));
+    expect(relative(home, dir)).toMatch(/^evolve[\\/]newbank-\d{14}$/);
     await answered(chatId, seq, EVOLVED);
 
     const chat = (await api('GET', `/api/chats/${chatId}`)).body;

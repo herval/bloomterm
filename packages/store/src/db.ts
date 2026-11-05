@@ -15,7 +15,13 @@ export function openDatabase(file: string): DB {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
-  migrate(db);
+  try {
+    migrate(db);
+  } catch (err) {
+    // Windows locks an open file: left open, this one couldn't be replaced or deleted.
+    db.close();
+    throw err;
+  }
   if (file !== ':memory:') {
     for (const f of [file, `${file}-wal`, `${file}-shm`]) {
       try {

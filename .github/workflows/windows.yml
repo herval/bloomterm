@@ -36,6 +36,7 @@ jobs:
       - run: pnpm test:unit
         if: ${{ !cancelled() }}
       - uses: Swatinem/rust-cache@v2
+        if: ${{ !cancelled() }}
         with:
           workspaces: apps/desktop/src-tauri
       # tauri-build wants these to exist; cargo check never runs them or packs them.

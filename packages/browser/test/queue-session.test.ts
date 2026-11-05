@@ -105,7 +105,7 @@ describe('SessionStore', () => {
     await store.apply('b3', { type: 'login_ok' });
     const reloaded = new SessionStore(file);
     expect((await reloaded.get('b3')).state).toBe('ok');
-    expect((await stat(file)).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect((await stat(file)).mode & 0o777).toBe(0o600); // Windows has no such modes
     expect(JSON.parse(await readFile(file, 'utf8')).b3.state).toBe('ok');
   });
 });

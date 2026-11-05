@@ -24,7 +24,7 @@ const tick = (ms: number) => (clock = new Date(clock.getTime() + ms));
 describe('database', () => {
   it('migrates to the latest schema and keeps files private', async () => {
     expect(store.db.pragma('user_version', { simple: true })).toBe(MIGRATIONS.length);
-    expect((await stat(join(dir, 'bloomterm.db'))).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect((await stat(join(dir, 'bloomterm.db'))).mode & 0o777).toBe(0o600); // Windows has no such modes
     store.close();
     store = openStore(join(dir, 'bloomterm.db'));
     expect(store.db.pragma('user_version', { simple: true })).toBe(MIGRATIONS.length);
