@@ -89,19 +89,23 @@ function Screenshot([string] $name) {
   $true
 }
 
-# A key, with the page in the window in focus.
-function Press([string] $keys) {
+function ClickPage {
   $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
   [Win32.Window]::SetCursorPos($bounds.Width / 2, $bounds.Height / 2) | Out-Null
   foreach ($button in 2, 4) { [Win32.Window]::mouse_event($button, 0, 0, 0, [UIntPtr]::Zero) }
   Start-Sleep -Milliseconds 500
+}
+
+function Press([string] $keys) {
   [System.Windows.Forms.SendKeys]::SendWait($keys)
   Start-Sleep -Seconds 2
 }
 
 function Api([string] $method, [string] $path) {
   $token = (Get-Content -Raw (Join-Path $data 'token')).Trim()
-  Invoke-RestMethod -TimeoutSec 60 -Method $method -Headers @{ authorization = "Bearer $token" } "http://127.0.0.1:$((Bloomd).port)$path"
+  $url = "http://127.0.0.1:$((Bloomd).port)$path"
+  if ($method -eq 'GET') { return Invoke-RestMethod -TimeoutSec 60 -Headers @{ authorization = "Bearer $token" } $url }
+  Invoke-RestMethod -TimeoutSec 60 -Method $method -ContentType 'application/json' -Body '{}' -Headers @{ authorization = "Bearer $token" } $url
 }
 
 # What Setup says to paste, in Windows PowerShell as a new PC has it: running no script files. Its
@@ -153,6 +157,7 @@ Check 'a screenshot of Sources' { Screenshot 'sources' }
 
 Write-Host '--- the keyboard'
 # WebView2 could keep these for itself. Only the pictures show that the page got them.
+ClickPage
 Press '^k'
 Check 'a screenshot of Ctrl+K' { Screenshot 'ctrl-k' }
 Press '{ESC}'

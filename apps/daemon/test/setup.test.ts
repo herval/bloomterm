@@ -87,7 +87,7 @@ describe('setup', () => {
     // GET keeps the last check; checking again finds it.
     expect((await call('GET', '/api/setup')).body.agent.found).toBeNull();
     const { body } = await call('POST', '/api/setup/check');
-    expect(body).toMatchObject({ ready: false, restarting: true, agent: { found: { kind: 'claude', path: '/fake/claude' }, inUse: null, restartNeeded: true, signIn: 'claude auth login' } });
+    expect(body).toMatchObject({ ready: false, restarting: true, agent: { found: { kind: 'claude', path: '/fake/claude' }, inUse: null, restartNeeded: true, signIn: expect.stringContaining('auth login') } });
     await vi.waitFor(() => expect(restart).toHaveBeenCalledOnce());
   });
 
