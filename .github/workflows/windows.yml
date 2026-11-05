@@ -20,9 +20,6 @@ jobs:
   check:
     runs-on: windows-latest
     timeout-minutes: 30
-    # Windows isn't supported yet, so a failure here doesn't fail the run. Every check runs even if
-    # an earlier one failed, to show everything left in one go. Drop both once all of them pass.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       # The pnpm version comes from packageManager in package.json.
@@ -34,29 +31,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test:unit
-        if: ${{ !cancelled() }}
       # bloomterm driving the runner's real Chrome. Not the web app's tests: on Windows that runs in
       # WebView2, which this wouldn't touch.
       - run: pnpm vitest run --project browser packages/browser apps/daemon
-        if: ${{ !cancelled() }}
       # A real Codex, without a model or a sign-in: does its sandbox hold on Windows?
       - run: npm install -g @openai/codex@0.166.0
-        if: ${{ !cancelled() }}
       - run: pnpm vitest run --project unit packages/agent/test/codex-sandbox.test.ts
-        if: ${{ !cancelled() }}
         env:
           BLOOMTERM_CODEX_SANDBOX: 1
       - uses: Swatinem/rust-cache@v2
-        if: ${{ !cancelled() }}
         with:
           workspaces: apps/desktop/src-tauri
       # tauri-build wants these to exist; cargo check never runs them or packs them.
       - name: Stand in for the bundle and the Node binary
-        if: ${{ !cancelled() }}
         shell: bash
         run: |
           mkdir -p dist/bundle apps/desktop/src-tauri/binaries
           touch apps/desktop/src-tauri/binaries/node-x86_64-pc-windows-msvc.exe
       - run: cargo check --locked --features updater
-        if: ${{ !cancelled() }}
         working-directory: apps/desktop/src-tauri
