@@ -26,6 +26,9 @@
       "signingIdentity": "-",
       "hardenedRuntime": false,
       "minimumSystemVersion": "13.0"
+    },
+    "windows": {
+      "nsis": { "installMode": "currentUser" }
     }
   }
 }

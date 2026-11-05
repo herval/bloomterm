@@ -19,6 +19,9 @@ const NODE_FLAG: &str = "--disable-warning=ExperimentalWarning";
 /// Exits this close together, other than restarts, and the app stops trying.
 const MAX_CRASHES: usize = 3;
 const CRASH_WINDOW: Duration = Duration::from_secs(60);
+/// node.exe is a console program: started from an app, it would open a console window.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum State {
@@ -44,7 +47,7 @@ pub struct Bloomd {
 pub fn home() -> PathBuf {
     match std::env::var_os("BLOOMTERM_HOME") {
         Some(h) if !h.is_empty() => PathBuf::from(h),
-        _ => PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".bloomterm"),
+        _ => PathBuf::from(std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap_or_default()).join(".bloomterm"),
     }
 }
 
@@ -153,7 +156,8 @@ impl Bloomd {
             return Ok(None);
         }
         let _ = writeln!(log, "--- bloomterm.app: starting bloomd");
-        let mut child = Command::new(&self.node)
+        let mut bloomd = Command::new(&self.node);
+        bloomd
             .arg(NODE_FLAG)
             .arg(&bt)
             .arg("daemon")
@@ -162,9 +166,10 @@ impl Bloomd {
             .env("BLOOMTERM_SUPERVISED", "1")
             .stdin(Stdio::null())
             .stdout(log.try_clone().map_err(|e| e.to_string())?)
-            .stderr(log)
-            .spawn()
-            .map_err(|e| format!("can't start {}: {e}", self.node.display()))?;
+            .stderr(log);
+        #[cfg(windows)]
+        std::os::windows::process::CommandExt::creation_flags(&mut bloomd, CREATE_NO_WINDOW);
+        let mut child = bloomd.spawn().map_err(|e| format!("can't start {}: {e}", self.node.display()))?;
         let pid = child.id();
         let mut up = false;
         loop {
@@ -205,7 +210,7 @@ impl Bloomd {
         }
     }
 
-    /// When the app quits: stops bloomd if the app started it (SIGTERM, then SIGKILL after 8s).
+    /// When the app quits: stops bloomd if the app started it. It gets 8s to stop by itself.
     pub fn stop(&self) {
         self.quitting.store(true, Ordering::SeqCst);
         // The supervisor hands the child over within 250ms.
@@ -220,17 +225,32 @@ impl Bloomd {
             thread::sleep(Duration::from_millis(50));
         };
         if let Some(c) = child.as_mut() {
-            unsafe { libc::kill(c.id() as libc::pid_t, libc::SIGTERM) };
-            let deadline = Instant::now() + Duration::from_secs(8);
-            while Instant::now() < deadline {
-                if let Ok(Some(_)) = c.try_wait() {
-                    return;
+            if self.ask_to_stop(c) {
+                let deadline = Instant::now() + Duration::from_secs(8);
+                while Instant::now() < deadline {
+                    if let Ok(Some(_)) = c.try_wait() {
+                        return;
+                    }
+                    thread::sleep(Duration::from_millis(100));
                 }
-                thread::sleep(Duration::from_millis(100));
             }
             let _ = c.kill();
             let _ = c.wait();
         }
+    }
+
+    #[cfg(unix)]
+    fn ask_to_stop(&self, bloomd: &Child) -> bool {
+        unsafe { libc::kill(bloomd.id() as libc::pid_t, libc::SIGTERM) };
+        true
+    }
+
+    /// Windows has no SIGTERM, only killing it outright, so this goes through its API. False if
+    /// it isn't answering yet.
+    #[cfg(windows)]
+    fn ask_to_stop(&self, bloomd: &Child) -> bool {
+        let port = state_file(&self.home).filter(|(pid, _)| *pid == bloomd.id()).map(|(_, port)| port);
+        port.is_some_and(|p| matches!(request(p, "POST", "/api/shutdown", token(&self.home).as_deref()), Some((202, _))))
     }
 
     /// A one-time sign-in link to bloomd's web app, like `bt ui`.
@@ -305,6 +325,7 @@ fn dechunk(mut body: &str) -> String {
 /// The PATH your login shell sets up, so bloomd finds `claude` or `codex` (and the `node` an npm
 /// install of them runs on); apps opened from the Finder get only /usr/bin:/bin:/usr/sbin:/sbin.
 /// The app's own Node comes last, for agent CLIs that need one when you have none.
+#[cfg(not(windows))]
 fn login_path(node: &Path) -> String {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
     const MARK: &str = "__BLOOMTERM_PATH__";
@@ -320,7 +341,16 @@ fn login_path(node: &Path) -> String {
     dirs.join(":")
 }
 
+/// On Windows apps get your whole PATH. The app's own Node comes last here too.
+#[cfg(windows)]
+fn login_path(node: &Path) -> String {
+    let mut dirs: Vec<PathBuf> = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
+    dirs.extend(node.parent().map(Path::to_path_buf));
+    std::env::join_paths(dirs).map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
 /// A command's stdout, or None if it fails or takes longer than `limit`.
+#[cfg(not(windows))]
 fn output_within(cmd: &mut Command, limit: Duration) -> Option<String> {
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
     let mut stdout = child.stdout.take()?;
@@ -372,6 +402,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
+    #[cfg(not(windows))]
     #[test]
     fn finds_a_login_path() {
         let p = login_path(Path::new("/Applications/bloomterm.app/Contents/MacOS/node"));

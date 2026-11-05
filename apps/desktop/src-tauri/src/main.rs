@@ -1,5 +1,9 @@
-//! bloomterm's desktop app (SPEC §8.7): a window on bloomd's web app, and a menu bar item that
-//! keeps bloomd running while the window is closed. Quitting the app stops the bloomd it started.
+//! bloomterm's desktop app (SPEC §8.7): a window on bloomd's web app, and a menu bar or tray item
+//! that keeps bloomd running while the window is closed. Quitting the app stops the bloomd it
+//! started.
+
+// Without this, Windows opens a console window behind the app.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod bloomd;
 #[cfg(feature = "updater")]
@@ -9,13 +13,14 @@ use bloomd::{Bloomd, State};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
-/// The app's own page (shell/index.html): "Starting bloomd…", or why it stopped.
-const STATUS_PAGE: &str = "tauri://localhost/index.html";
+/// The app's own page (shell/index.html): "Starting bloomd…", or why it stopped. Windows serves the
+/// app's files from a made-up http host.
+const STATUS_PAGE: &str = if cfg!(windows) { "http://tauri.localhost/index.html" } else { "tauri://localhost/index.html" };
 
 /// The port of the bloomd the window shows, or None while it shows the status page.
 struct View(Mutex<Option<u16>>);
@@ -28,14 +33,28 @@ struct Tray {
 fn main() {
     // Open at Login starts the app with --hidden: bloomd and the menu bar item, no window.
     let hidden = std::env::args().any(|a| a == "--hidden");
+    // --quit does what Quit in the menu does, to the app that's running.
+    let quit = std::env::args().any(|a| a == "--quit");
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| show(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if args.iter().any(|a| a == "--quit") {
+                app.exit(0);
+            } else {
+                show(app);
+            }
+        }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])));
     #[cfg(feature = "updater")]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    // The Mac's menu bar. On Windows this would be a strip of File, Edit and View across the window.
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(Menu::default);
     let app = builder
-        .menu(Menu::default)
         .setup(move |app| {
+            // There was no app to quit, or the second-instance plugin would have ended this one.
+            if quit {
+                std::process::exit(0);
+            }
             let handle = app.handle().clone();
             app.manage(View(Mutex::new(None)));
             let w = window(&handle)?;
@@ -43,7 +62,7 @@ fn main() {
                 w.show()?;
             }
             tray(&handle)?;
-            let node = std::env::current_exe()?.with_file_name("node");
+            let node = std::env::current_exe()?.with_file_name(if cfg!(windows) { "node.exe" } else { "node" });
             let bundle = app.path().resource_dir()?.join("bundle");
             let on_change = handle.clone();
             let bloomd = Bloomd::new(bloomd::home(), node, bundle, move |s| on_state(&on_change, s));
@@ -54,6 +73,7 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("bloomterm couldn't start");
     app.run(|app, event| match event {
+        #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => show(app),
         RunEvent::Exit => app.state::<Arc<Bloomd>>().stop(),
         _ => {}
@@ -74,7 +94,7 @@ fn window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .on_navigation(|url| {
             let ours = match url.scheme() {
                 "tauri" | "about" => true,
-                "http" => url.host_str() == Some("127.0.0.1"),
+                "http" => url.host_str() == Some("127.0.0.1") || (cfg!(windows) && url.host_str() == Some("tauri.localhost")),
                 _ => false,
             };
             if !ours {
@@ -99,9 +119,19 @@ fn window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
 }
 
 fn open_outside(url: &Url) {
-    if matches!(url.scheme(), "http" | "https" | "mailto") {
-        let _ = std::process::Command::new("/usr/bin/open").arg(url.as_str()).spawn();
+    if !matches!(url.scheme(), "http" | "https" | "mailto") {
+        return;
     }
+    #[cfg(windows)]
+    let mut open = {
+        let windows = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        let mut open = std::process::Command::new(std::path::Path::new(&windows).join("System32").join("rundll32.exe"));
+        open.arg("url.dll,FileProtocolHandler");
+        open
+    };
+    #[cfg(not(windows))]
+    let mut open = std::process::Command::new("/usr/bin/open");
+    let _ = open.arg(url.as_str()).spawn();
 }
 
 fn tray(app: &AppHandle) -> tauri::Result<()> {
@@ -128,12 +158,20 @@ fn tray(app: &AppHandle) -> tauri::Result<()> {
         menu.insert(&update, 7)?;
         updates::init(app, update);
     }
+    // The Mac tints its template icon to suit the menu bar. Windows would show it black on a dark taskbar.
+    let icon: &[u8] = if cfg!(windows) { include_bytes!("../icons/32x32.png") } else { include_bytes!("../tray/icon.png") };
     TrayIconBuilder::with_id("main")
-        .icon(tauri::image::Image::from_bytes(include_bytes!("../tray/icon.png"))?)
+        .icon(tauri::image::Image::from_bytes(icon)?)
         .icon_as_template(true)
         .tooltip("bloomterm")
         .menu(&menu)
-        .show_menu_on_left_click(true)
+        // On Windows a click opens the app, and a right click the menu.
+        .show_menu_on_left_click(cfg!(not(windows)))
+        .on_tray_icon_event(|tray, e| {
+            if cfg!(windows) && matches!(e, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) {
+                show(tray.app_handle());
+            }
+        })
         .on_menu_event(|app, e| on_menu(app, e.id().as_ref()))
         .build(app)?;
     app.manage(Tray { status, login });
@@ -198,7 +236,7 @@ fn show(app: &AppHandle) {
     }
 }
 
-/// bloomd changed: the menu bar says so, and the window goes to it or to the status page.
+/// bloomd changed: the menu says so, and the window goes to it or to the status page.
 fn on_state(app: &AppHandle, s: &State) {
     let _ = app.state::<Tray>().status.set_text(match s {
         State::Starting => "bloomd: starting…".to_string(),
