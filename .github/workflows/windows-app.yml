@@ -1,0 +1,60 @@
+name: Windows app
+
+# Builds the Windows installer, then installs it and uses it on a real Windows machine. Apart from
+# the Windows checks because a release build is slow: Windows minutes bill at twice the Linux rate
+# while the repo is private. The installer is unsigned (Windows v1 is for friends).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - 'scripts/bundle.mjs'
+      - 'scripts/fetch-node.sh'
+      - 'scripts/windows-smoke.ps1'
+      - '.github/workflows/windows-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - run: pnpm build:web
+      - run: node scripts/bundle.mjs
+      - run: sh scripts/fetch-node.sh
+        shell: bash
+      - run: pnpm --dir apps/desktop tauri build --bundles nsis
+      - name: Install it and use it
+        shell: pwsh
+        run: ./scripts/windows-smoke.ps1 (Get-Item apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe).FullName "$env:RUNNER_TEMP/smoke"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: bloomterm-windows-installer
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: windows-smoke
+          path: ${{ runner.temp }}/smoke
+          retention-days: 14
