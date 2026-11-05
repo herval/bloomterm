@@ -1,12 +1,14 @@
 //! Updates, in release builds only (`--features updater`, which scripts/release.sh builds with).
 //! The app checks the releases' latest.json 30 s after launch and every six hours, downloads a
-//! newer version in the background, and the menu bar offers "Restart to Update". The update's
+//! newer version in the background, and the menu offers "Restart to Update". The update's
 //! signature is checked against the key in tauri.release.conf.json, and must name the version
-//! latest.json announces. Restarting stops the bloomd the app started (RunEvent::Exit); the new
-//! version starts it again.
+//! latest.json announces. Restarting stops the bloomd the app started; the new version starts it
+//! again. On the Mac RunEvent::Exit does that. On Windows the updater runs the installer and ends
+//! the app on the spot, with no RunEvent::Exit, so its on_before_exit does.
 
+use crate::bloomd::Bloomd;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tauri::menu::MenuItem;
@@ -61,7 +63,12 @@ fn check(app: &AppHandle, manual: bool) {
         set(&u.item, "Checking for Updates…", false);
     }
     let found = tauri::async_runtime::block_on(async {
-        let Some(update) = app.updater()?.check().await? else { return Ok(None) };
+        let stopping = app.clone();
+        let updater = app.updater_builder().on_before_exit(move || {
+            stopping.state::<Arc<Bloomd>>().stop();
+            stopping.cleanup_before_exit();
+        });
+        let Some(update) = updater.build()?.check().await? else { return Ok(None) };
         set(&u.item, &format!("Downloading {}…", update.version), false);
         let bytes = update.download(|_, _| {}, || {}).await?;
         Ok::<_, tauri_plugin_updater::Error>(Some((update, bytes)))
@@ -98,6 +105,10 @@ fn install(app: &AppHandle) {
         Ok(()) => app.request_restart(),
         Err(e) => {
             eprintln!("bloomterm: installing {} failed: {e}", update.version);
+            // On Windows bloomd and the tray may be gone by now: back to the version you had.
+            if cfg!(windows) {
+                app.restart();
+            }
             note(&u.item, "Couldn't install the update");
         }
     }
@@ -118,8 +129,17 @@ fn note(item: &MenuItem<Wry>, text: &str) {
     });
 }
 
-/// A macOS notification, once an update is ready. `version` is semver, so it's safe to quote.
+/// A notification, once an update is ready. `version` is semver, so it's safe to quote.
+#[cfg(not(windows))]
 fn notify(version: &str) {
     let script = format!("display notification \"Restart to update from the menu bar.\" with title \"bloomterm {version} is ready\"");
     let _ = std::process::Command::new("/usr/bin/osascript").arg("-e").arg(script).spawn();
+}
+
+#[cfg(windows)]
+fn notify(version: &str) {
+    let _ = tauri_winrt_notification::Toast::new("app.bloomterm.desktop")
+        .title(&format!("bloomterm {version} is ready"))
+        .text1("Right-click bloomterm in the tray to restart and update.")
+        .show();
 }

@@ -997,8 +997,9 @@ the Mac that runs it, with `make app`: Apple silicon, ad-hoc signed, no updater.
 
 **The menu bar.** Open bloomterm, Ask…, Sources, bloomd's state, Restart bloomd, Open at Login (a
 LaunchAgent that starts the app without its window), Quit bloomterm. It runs once: opening it again
-shows the window, and `bloomterm --quit` quits the one that's running. On Windows this is the tray
-icon's menu, on a right click; a click opens the window.
+shows the window, and `bloomterm --menu=<id>` does what an item does in the one that's running
+(`--menu=quit`, `--menu=update`), so a script can drive it. On Windows this is the tray icon's menu,
+on a right click; a click opens the window.
 
 **Signing.** `make app` signs ad-hoc (`signingIdentity: "-"`), without the hardened runtime, so that
 app runs only on the Mac that built it. `NSAppleEventsUsageDescription` is set because bloomd asks
@@ -1007,11 +1008,12 @@ System Events which app is in front, to give focus back after a sign-in window.
 **Windows.** The same app in a per-user NSIS installer, unsigned for now, with WebView2 in place of
 WebKit and `%LOCALAPPDATA%\bloomterm` as its folder. An installer run over the running app, or the
 uninstaller, closes it through Windows' Restart Manager, and that stops its bloomd as Quit does.
-GitHub builds the installer on each change to the app (`windows-app.yml`) and
-`scripts/windows-smoke.ps1` installs and uses it there.
+GitHub builds the installer on each change to the app (`windows-app.yml`), and
+`scripts/windows-smoke.ps1` installs and uses it there, and updates it to a newer version, with an
+updater key made for that run.
 
-**Releases, for other Macs** (`make release`, `scripts/release.sh`). Apple silicon only; Intel waits
-until someone asks.
+**Releases, for other computers** (`make release`, `scripts/release.sh`). Apple silicon Macs and
+64-bit Windows; Intel Macs wait until someone asks.
 - **Signed** with the Developer ID Application certificate in the keychain, under the hardened
   runtime (`tauri.release.conf.json`). `Entitlements.plist` lets Node JIT (`allow-jit`,
   `allow-unsigned-executable-memory`) and send Apple Events. The SQLite addon is signed with the
@@ -1028,9 +1030,16 @@ until someone asks.
   against the public key in `tauri.release.conf.json`, and `requireSignedVersion` makes the signature
   name the version, so an old release can't be served as a new one. Restarting stops the bloomd the
   app started (RunEvent::Exit). Losing the private key means installed apps can't update anymore.
+- **On Windows** GitHub builds the installer from the pushed commit (`scripts/windows-installer.sh`
+  runs `windows-app.yml`, smoke test included). The updater's private key stays on the Mac, which
+  signs the installer as it does the tarball. The installer is the update too: the app stops bloomd
+  (the updater's `on_before_exit`, since it ends the app without a RunEvent::Exit), and runs it with
+  a progress bar and no prompts; it starts the new version. It isn't code signed, so Windows warns
+  about it the first time; updates only pass the signature check above.
 - **Published** as a release of this repo (`herval/bloomterm`, or `BLOOMTERM_RELEASES_REPO` for
-  your own), tagged `v<version>`: a draft release with `bloomterm.dmg`, `bloomterm.app.tar.gz` and `latest.json`, then
-  made public at once. People download `…/releases/latest/download/bloomterm.dmg`.
+  your own), tagged `v<version>`: a draft release with `bloomterm.dmg`, `bloomterm-setup.exe` (its
+  SHA-256 in the notes), `bloomterm.app.tar.gz` and `latest.json`, then made public at once. People
+  download `…/releases/latest/download/bloomterm.dmg` or `…/bloomterm-setup.exe`.
 - A release is the version in `tauri.conf.json`; publishing needs a clean tree, and a version not
   released yet. `--no-publish` stops before the upload, `--no-notarize` after the signature checks.
 

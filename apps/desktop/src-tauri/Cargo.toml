@@ -24,9 +24,12 @@ tauri-plugin-updater = { version = "2", optional = true }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(windows)'.dependencies]
+tauri-winrt-notification = { version = "0.8", optional = true }
+
 [features]
 # Release builds (scripts/release.sh) check for updates; `make app` builds don't.
-updater = ["dep:tauri-plugin-updater"]
+updater = ["dep:tauri-plugin-updater", "dep:tauri-winrt-notification"]
 
 [profile.release]
 lto = true

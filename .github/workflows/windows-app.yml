@@ -1,8 +1,12 @@
 name: Windows app
 
-# Builds the Windows installer, then installs it and uses it on a real Windows machine. Apart from
-# the Windows checks because a release build is slow: Windows minutes bill at twice the Linux rate
-# while the repo is private. The installer is unsigned (Windows v1 is for friends).
+# Builds the Windows installer, then installs it and uses it on a real Windows machine, and updates
+# it to a newer version. Apart from the Windows checks because a release build is slow: Windows
+# minutes bill at twice the Linux rate while the repo is private. The installer isn't code signed
+# (Windows v1 is for friends).
+#
+# scripts/windows-installer.sh runs this for a release, with latest_url set. That build goes through
+# everything but the update, which needs the updater's key.
 
 on:
   push:
@@ -14,12 +18,18 @@ on:
       - 'scripts/windows-smoke.ps1'
       - '.github/workflows/windows-app.yml'
   workflow_dispatch:
+    inputs:
+      latest_url:
+        description: For a release, the latest.json the app updates from
+        type: string
+        required: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: windows-app-${{ github.ref }}
+  # A push doesn't cancel a release's build.
+  group: windows-app-${{ github.ref }}-${{ inputs.latest_url }}
   cancel-in-progress: true
 
 jobs:
@@ -41,15 +51,45 @@ jobs:
       - run: node scripts/bundle.mjs
       - run: sh scripts/fetch-node.sh
         shell: bash
-      - run: pnpm --dir apps/desktop tauri build --bundles nsis
+      # A release checks for updates at latest_url, against the public key it's built with. Any
+      # other build updates from the smoke test's own server, with a key made for this run.
+      - name: Say where the app finds updates
+        shell: bash
+        env:
+          LATEST_URL: ${{ inputs.latest_url }}
+        run: |
+          if [ -n "$LATEST_URL" ]; then
+            node -p 'JSON.stringify({ plugins: { updater: { endpoints: [process.env.LATEST_URL] } } })' >"$RUNNER_TEMP/updates.json"
+          else
+            pnpm --dir apps/desktop tauri signer generate --ci -p test -w "$RUNNER_TEMP/update.key"
+            PUBKEY=$(cat "$RUNNER_TEMP/update.key.pub") node -p 'JSON.stringify({ plugins: { updater: { pubkey: process.env.PUBKEY, endpoints: ["http://127.0.0.1:8765/latest.json"], dangerousInsecureTransportProtocol: true } } })' >"$RUNNER_TEMP/updates.json"
+          fi
+      - run: pnpm --dir apps/desktop tauri build --ci --bundles nsis --features updater --config src-tauri/tauri.release.conf.json --config "$env:RUNNER_TEMP/updates.json"
+      - name: Set the installer aside
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/installer"
+          mv apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe "$RUNNER_TEMP/installer/"
+      # The same app as a newer version: only its installer says so, which saves a second build.
+      - name: Make an update
+        if: ${{ !inputs.latest_url }}
+        shell: bash
+        run: |
+          pnpm --dir apps/desktop tauri bundle --ci --bundles nsis --features updater --config src-tauri/tauri.release.conf.json --config "$RUNNER_TEMP/updates.json" --config '{"version":"99.0.0"}'
+          mkdir "$RUNNER_TEMP/update"
+          cp apps/desktop/src-tauri/target/release/bundle/nsis/*_99.0.0_*-setup.exe "$RUNNER_TEMP/update/bloomterm-setup.exe"
+          pnpm --dir apps/desktop tauri signer sign --app-version 99.0.0 -f "$RUNNER_TEMP/update.key" -p test "$RUNNER_TEMP/update/bloomterm-setup.exe"
+          SIGNATURE=$(cat "$RUNNER_TEMP/update/bloomterm-setup.exe.sig") node -p 'JSON.stringify({ version: "99.0.0", pub_date: new Date().toISOString(), platforms: { "windows-x86_64": { signature: process.env.SIGNATURE, url: "http://127.0.0.1:8765/bloomterm-setup.exe" } } })' >"$RUNNER_TEMP/update/latest.json"
       - name: Install it and use it
         shell: pwsh
-        run: ./scripts/windows-smoke.ps1 (Get-Item apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe).FullName "$env:RUNNER_TEMP/smoke"
+        env:
+          LATEST_URL: ${{ inputs.latest_url }}
+        run: ./scripts/windows-smoke.ps1 (Get-Item "$env:RUNNER_TEMP/installer/*-setup.exe").FullName "$env:RUNNER_TEMP/smoke" $(if (-not $env:LATEST_URL) { "$env:RUNNER_TEMP/update" })
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: bloomterm-windows-installer
-          path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          path: ${{ runner.temp }}/installer/*-setup.exe
           compression-level: 0
           retention-days: 14
       - uses: actions/upload-artifact@v4

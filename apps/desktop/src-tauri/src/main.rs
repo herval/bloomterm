@@ -33,15 +33,13 @@ struct Tray {
 fn main() {
     // Open at Login starts the app with --hidden: bloomd and the menu bar item, no window.
     let hidden = std::env::args().any(|a| a == "--hidden");
-    // --quit does what Quit in the menu does, to the app that's running.
-    let quit = std::env::args().any(|a| a == "--quit");
+    // --menu=<id> does what that menu item does in the app that's running: --menu=quit, say.
+    let menu_item = |a: &String| a.strip_prefix("--menu=").map(str::to_string);
+    let scripted = std::env::args().any(|a| menu_item(&a).is_some());
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
-            if args.iter().any(|a| a == "--quit") {
-                app.exit(0);
-            } else {
-                show(app);
-            }
+        .plugin(tauri_plugin_single_instance::init(move |app, args, _| match args.iter().find_map(menu_item) {
+            Some(id) => on_menu(app, &id),
+            None => show(app),
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])));
     #[cfg(feature = "updater")]
@@ -51,8 +49,8 @@ fn main() {
     let builder = builder.menu(Menu::default);
     let app = builder
         .setup(move |app| {
-            // There was no app to quit, or the second-instance plugin would have ended this one.
-            if quit {
+            // There's no app to tell, or the second-instance plugin would have ended this one.
+            if scripted {
                 std::process::exit(0);
             }
             let handle = app.handle().clone();

@@ -2,11 +2,15 @@
 # Windows machine is the only one this runs on, so every check runs even after one fails, and a
 # screenshot and the logs go to the results folder.
 #
-#   pwsh scripts/windows-smoke.ps1 <installer.exe> <results folder>
+# With an update folder (a newer version's installer and its latest.json) it also updates the app
+# from it, on 127.0.0.1:8765, where an app built for this looks.
+#
+#   pwsh scripts/windows-smoke.ps1 <installer.exe> <results folder> [update folder]
 
 param(
   [Parameter(Mandatory)] [string] $Installer,
-  [Parameter(Mandatory)] [string] $Out
+  [Parameter(Mandatory)] [string] $Out,
+  [string] $Update
 )
 
 $ErrorActionPreference = 'Continue'
@@ -41,10 +45,15 @@ function WaitFor([int] $seconds, [scriptblock] $test) {
 
 function Running { Get-Process bloomterm, node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$app\*" } }
 
-function Healthy {
-  $port = (Get-Content -Raw (Join-Path $data 'state\bloomd.json') | ConvertFrom-Json).port
-  (Invoke-RestMethod -TimeoutSec 3 "http://127.0.0.1:$port/api/health").name -eq 'bloomd'
-}
+function Bloomd { Get-Content -Raw (Join-Path $data 'state\bloomd.json') | ConvertFrom-Json }
+
+function Healthy { (Invoke-RestMethod -TimeoutSec 3 "http://127.0.0.1:$((Bloomd).port)/api/health").name -eq 'bloomd' }
+
+function Stops { (Select-String -Path $log -Pattern 'stopping.*shutdown').Count }
+
+function Version { (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -EQ 'bloomterm').DisplayVersion }
+
+function OpensAtLogin { (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').PSObject.Properties.Value -match 'bloomterm\.exe.*--hidden' }
 
 function StartApp {
   Start-Process $exe
@@ -97,9 +106,29 @@ Start-Sleep -Seconds 20
 Write-Host "window: $((Get-Process bloomterm).MainWindowTitle)"
 Check 'a screenshot' { Screenshot 'app' }
 
+Write-Host '--- the tray menu, from a script'
+& $exe --menu=sources
+Start-Sleep -Seconds 3
+Check 'a screenshot of Sources' { Screenshot 'sources' }
+Check 'Open at Login turns on' { & $exe --menu=login; WaitFor 10 { OpensAtLogin } }
+Check 'and off' { & $exe --menu=login; WaitFor 10 { -not (OpensAtLogin) } }
+Check 'Restart bloomd restarts it' {
+  $before = (Bloomd).pid
+  & $exe --menu=restart
+  WaitFor 30 { (Bloomd).pid -ne $before -and (Healthy) }
+}
+
+Write-Host '--- closing the window'
+Check 'it keeps bloomd running' {
+  (Get-Process bloomterm).CloseMainWindow() | Out-Null
+  Start-Sleep -Seconds 2
+  (Healthy) -and (Get-Process bloomterm).MainWindowHandle -eq 0
+}
+Check 'opening the app again shows it' { Start-Process $exe; WaitFor 10 { (Get-Process bloomterm).MainWindowHandle -ne 0 } }
+
 Write-Host '--- quitting'
-Check '--quit stops the app and bloomd' { & $exe --quit; Stopped }
-Check 'bloomd stopped by itself' { Select-String -Quiet -Path $log -Pattern 'stopping.*shutdown' }
+Check 'Quit stops the app and bloomd' { & $exe --menu=quit; Stopped }
+Check 'bloomd stopped by itself' { (Stops) -gt 0 }
 
 Write-Host '--- installing over the running app'
 Check 'it starts again' { StartApp }
@@ -107,6 +136,22 @@ Check 'the installer finishes' { Install }
 Check 'nothing of the old one is left running' { Stopped }
 Check 'the new one runs' { & $node --version; $LASTEXITCODE -eq 0 }
 Running | Stop-Process -Force
+
+if ($Update) {
+  Write-Host '--- updating'
+  $requests = Join-Path $Out 'updates.log'
+  $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '--bind', '127.0.0.1', '--directory', $Update -RedirectStandardError $requests -WindowStyle Hidden -PassThru
+  Check 'it starts again' { StartApp }
+  Check 'it downloads the update by itself' { WaitFor 90 { Select-String -Quiet -Path $requests -Pattern 'GET /bloomterm-setup.exe' } }
+  Start-Sleep -Seconds 3
+  Check 'a screenshot of the toast' { Screenshot 'update-ready' }
+  Start-Sleep -Seconds 3
+  $stops = Stops
+  & $exe --menu=update
+  Check 'bloomd stops by itself first' { WaitFor 30 { (Stops) -gt $stops } }
+  Check 'the app comes back as the new version' { WaitFor 120 { (Version) -eq '99.0.0' -and (Running) -and (Healthy) } }
+  $server | Stop-Process
+}
 
 Write-Host '--- uninstalling the running app'
 Check 'it starts again' { StartApp }
