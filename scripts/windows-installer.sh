@@ -28,12 +28,22 @@ run=$before
 for _ in {1..40}; do
   [ "$run" -gt "$before" ] && break
   sleep 3
-  run=$(last_run)
+  run=$(last_run || echo "$before")
 done
 [ "$run" -gt "$before" ] || die "GitHub didn't start the build"
 
 echo "windows-installer: building $sha: $(gh run view "$run" --json url -q .url)"
-gh run watch "$run" --exit-status --interval 30 >/dev/null || die "the build failed: gh run view $run --log-failed"
+# By asking again and again, not `gh run watch`: one network error shouldn't end a release.
+SECONDS=0
+while :; do
+  status=$(gh run view "$run" --json status,conclusion -q '.status + " " + .conclusion' 2>/dev/null || true)
+  case $status in
+    "completed success") break ;;
+    completed*) die "the build failed: gh run view $run --log-failed" ;;
+  esac
+  [ $SECONDS -lt 3600 ] || die "the build is still not done after an hour: gh run view $run"
+  sleep 30
+done
 
 fetched=$(mktemp -d)
 trap 'rm -rf "$fetched"' EXIT
