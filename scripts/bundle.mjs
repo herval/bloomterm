@@ -60,13 +60,15 @@ function packageDir(name, from) {
 }
 
 const copy = (from, to, filter) => cpSync(from, to, { recursive: true, dereference: true, filter });
+/** `path` relative to `dir`, with / on every system. */
+const inside = (dir, path) => path.slice(dir.length + 1).replaceAll('\\', '/');
 
 // better-sqlite3 needs only lib/ and the prebuilt addon for this machine (it picks
 // prebuilds/<platform>-<arch>.node).
 const sqlite = packageDir('better-sqlite3', join(root, 'packages/store'));
 const addon = `${process.platform}-${process.arch}.node`;
 copy(sqlite, join(out, 'node_modules/better-sqlite3'), (p) => {
-  const rel = p.slice(sqlite.length + 1);
+  const rel = inside(sqlite, p);
   if (rel === '' || rel === 'package.json' || rel === 'LICENSE') return true;
   if (rel === 'lib' || rel.startsWith('lib/')) return true;
   return rel === 'prebuilds' || rel === `prebuilds/${addon}`;
@@ -103,13 +105,14 @@ for (const [name, from] of [['zod', join(root, 'packages/core')], ['@types/node'
 // TypeScript, only what `tsc` runs: bin/tsc, lib/tsc.js and _tsc.js, and the lib.*.d.ts files.
 const ts = packageDir('typescript', root);
 copy(ts, join(kit, 'node_modules/typescript'), (p) => {
-  const rel = p.slice(ts.length + 1);
+  const rel = inside(ts, p);
   return ['', 'package.json', 'LICENSE.txt', 'bin', 'bin/tsc', 'lib', 'lib/tsc.js', 'lib/_tsc.js'].includes(rel) || /^lib\/lib\..*\.d\.ts$/.test(rel);
 });
 
 writeFileSync(join(out, 'package.json'), `${JSON.stringify({ name: 'bloomterm-bundle', private: true, type: 'module' }, null, 2)}\n`);
 
-// `bt` for your shell: link it onto your PATH. In the app it runs on the app's Node.
+// `bt` for your shell: link it onto your PATH, or on Windows add this folder to it. In the app it
+// runs on the app's Node.
 writeFileSync(
   join(out, 'bt'),
   `#!/bin/sh
@@ -120,6 +123,10 @@ node="$here/../../MacOS/node"
 exec "$node" --disable-warning=ExperimentalWarning "$here/bt.mjs" "$@"
 `,
   { mode: 0o755 },
+);
+writeFileSync(
+  join(out, 'bt.cmd'),
+  ['@echo off', 'setlocal', 'set "node=%~dp0..\\node.exe"', 'if not exist "%node%" set "node=node"', '"%node%" --disable-warning=ExperimentalWarning "%~dp0bt.mjs" %*', ''].join('\r\n'),
 );
 
 const size = (dir) => readdirSync(dir, { recursive: true }).reduce((n, f) => {
