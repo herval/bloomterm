@@ -310,6 +310,7 @@ dependencies = [
 name = "bloomterm-desktop"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "libc",
  "serde_json",
  "tauri",

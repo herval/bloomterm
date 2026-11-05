@@ -18,6 +18,7 @@ tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 serde_json = "1"
+dunce = "1"
 tauri-plugin-updater = { version = "2", optional = true }
 
 [target.'cfg(unix)'.dependencies]

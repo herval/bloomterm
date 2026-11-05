@@ -63,7 +63,8 @@ fn main() {
             }
             tray(&handle)?;
             let node = std::env::current_exe()?.with_file_name(if cfg!(windows) { "node.exe" } else { "node" });
-            let bundle = app.path().resource_dir()?.join("bundle");
+            // On Windows this comes as \\?\C:\..., which Node can't open.
+            let bundle = dunce::simplified(&app.path().resource_dir()?).join("bundle");
             let on_change = handle.clone();
             let bloomd = Bloomd::new(bloomd::home(), node, bundle, move |s| on_state(&on_change, s));
             app.manage(bloomd.clone());
