@@ -111,8 +111,10 @@ describe('EVOLVE', () => {
       ['Write', true],
       ['check', true],
     ]);
-    // The run's folder: the routine, the SDK and the examples to read, ./check to run.
-    for (const f of ['CLAUDE.md', 'AGENTS.md', 'check', 'sdk/integrations/sdk-surface.ts', 'newbank/index.ts']) expect(existsSync(join(dir, f)), f).toBe(true);
+    // The run's folder: the routine, and the SDK and the examples to read.
+    for (const f of ['CLAUDE.md', 'AGENTS.md', 'sdk/integrations/sdk-surface.ts', 'newbank/index.ts']) expect(existsSync(join(dir, f)), f).toBe(true);
+    // The agent's `check` tool, the same checks as above.
+    expect((await api('POST', `/api/evolve/${chatId}/check`)).body).toMatchObject({ load: true, typecheck: true, tests: true, readme: true, ok: true });
     expect(await readFile(join(dir, 'CLAUDE.md'), 'utf8')).toContain('# EVOLVE');
 
     expect((await api('GET', '/api/chats?kind=evolve')).body.map((c: any) => c.id)).toEqual([chatId]);
@@ -152,13 +154,13 @@ describe('EVOLVE', () => {
     expect((await api('DELETE', '/api/integrations/newbank')).status).toBe(404);
   });
 
-  it("tells each CLI how its own tools work (Codex has no Read tool; Claude's shell is an allowlist)", () => {
+  it('tells each CLI how its own tools work (Codex has no Read tool; Claude has no shell)', () => {
     expect(evolveSystem('claude')).toContain('Read, Glob and Grep');
     expect(evolveSystem('codex')).not.toContain('Read, Glob');
     expect(evolveSystem('codex')).toContain('apply_patch');
     for (const k of ['claude', 'codex'] as const) {
       expect(evolveSystem(k)).toContain('read CLAUDE.md here');
-      expect(evolveSystem(k)).toContain('./check');
+      expect(evolveSystem(k)).toContain('`check` tool');
     }
   });
 

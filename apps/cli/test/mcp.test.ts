@@ -80,9 +80,10 @@ describe('bt mcp', () => {
     try {
       await m.call('initialize', {});
       const names = (await m.call('tools/list')).result.tools.map((t: any) => t.name);
-      expect(names).toEqual(expect.arrayContaining(['get_quotes', 'list_recordings', 'har_summary', 'har_entry', 'browser_capture', 'browser_fetch', 'try_dataset']));
+      expect(names).toEqual(expect.arrayContaining(['get_quotes', 'list_recordings', 'har_summary', 'har_entry', 'browser_capture', 'browser_fetch', 'check', 'try_dataset']));
       expect((await m.tool('list_recordings')).data).toEqual([]);
       expect(await m.tool('try_dataset', { dataset: 'positions' })).toEqual({ isError: true, data: 'no EVOLVE run c_nope' });
+      expect(await m.tool('check')).toEqual({ isError: true, data: 'no EVOLVE run c_nope' });
       expect((await m.tool('har_summary', { file: 'nope.har' })).data).toBe('no recording nope.har');
     } finally {
       m.close();

@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,12 +37,9 @@ export async function copyBuiltin(src: string, dest: string): Promise<void> {
   }
 }
 
-/** Single-quoted for sh. */
-const sh = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
-
 /**
  * Makes a run's folder: `<id>/` (the copy the agent edits), CLAUDE.md and AGENTS.md (the
- * routine), `sdk/` and `examples/` (to read), and `./check`, which runs bloomd's checks.
+ * routine), and `sdk/` and `examples/` (to read).
  */
 export async function createRunDir(dir: string, id: string, start: EvolveFrom, builtins: string[]): Promise<void> {
   const app = layout();
@@ -66,13 +63,6 @@ export async function createRunDir(dir: string, id: string, start: EvolveFrom, b
     "# @bloomterm/sdk\n\nRead-only copies of the SDK's sources, for reference. `integrations/sdk-surface.ts` is what `import … from '@bloomterm/sdk'` gives you; the rest is what it re-exports. Don't import these files.\n",
   );
   for (const b of builtins) if (b !== id) await copyBuiltin(join(app.integrationsSrc, b), join(dir, 'examples', b));
-
-  const check = join(dir, 'check');
-  await writeFile(
-    check,
-    `#!/bin/sh\n# bloomd's checks for ${id}/: it loads, typechecks, passes its tests, and has its README.\nexport NODE_NO_WARNINGS=1\nexec ${[...app.bt, 'check-integration', folder].map(sh).join(' ')} "$@"\n`,
-  );
-  await chmod(check, 0o755);
 }
 
 export interface Checks {
@@ -162,8 +152,8 @@ async function strippable(folder: string): Promise<{ ok: boolean; output: string
 }
 
 /**
- * bloomd's checks of an integration folder: the same whether the agent runs `./check`, bloomd
- * runs them after a run, or you approve a folder you edited. It imports the code, so run it in
+ * bloomd's checks of an integration folder: the same whether the agent calls its `check` tool,
+ * bloomd runs them after a run, or you approve a folder you edited. It imports the code, so run it in
  * its own process (`bt check-integration`), as `runChecks` does.
  */
 export async function checkIntegration(dir: string, id: string): Promise<Checks> {
@@ -226,7 +216,7 @@ export async function loadCandidate(folder: string, id: string): Promise<Browser
 /** How each agent CLI works in the run's folder; the rest of the instructions are the same for both. */
 const TOOL_NOTES: Record<AgentKind, string> = {
   claude:
-    "Tools: read files with Read, Glob and Grep (not cat or head); edit with Edit and Write. The shell runs only `./check` and `ls`. A refused command isn't on that list: use one that is.",
+    'Tools: read files with Read, Glob and Grep; edit with Edit and Write. There is no shell here.',
   codex:
     'Tools: your shell is sandboxed to this folder. Read with cat, sed, rg and ls; edit with apply_patch. Writes outside this folder fail. Reach sites only through the bloomterm MCP tools.',
 };
@@ -237,9 +227,9 @@ export function evolveSystem(kind: AgentKind): string {
 Before anything else, read CLAUDE.md here (AGENTS.md is the same file) and follow it: it is the routine, and its rules are hard limits.
 
 - ${TOOL_NOTES[kind]}
-- Edit only the integration's folder. Everything else here (sdk/, examples/, ./check) is for reading or running, and isn't kept.
+- Edit only the integration's folder. Everything else here (sdk/, examples/) is for reading, and isn't kept.
 - Import only from '@bloomterm/sdk', node: modules and the integration's own files. sdk/ has the SDK's sources; examples/ has bloomterm's built-in integrations, written the same way.
-- Before you stop, run \`./check\` and fix what fails: it loads the integration the way bloomd will, typechecks it, runs its tests and checks its README. bloomd runs it again when you stop.
+- Before you stop, call the bloomterm \`check\` tool and fix what fails: it loads the integration the way bloomd will, typechecks it, runs its tests and checks its README. bloomd runs it again when you stop.
 - Nothing you write runs in bloomterm until its owner reads the diff and approves it. Don't try to install it.
 - The bloomterm MCP tools are how you see the site: recordings (list_recordings, har_summary, har_entry), the signed-in browser (browser_capture, browser_fetch) and try_dataset, which runs your code against the live site. Every one is read-only, and the mutation guard blocks writes.
 - Never ask for, type, store or print a password, one-time code or cookie value. If the site wants a sign-in, stop and say so: the owner signs in with \`bt login <id>\`.
@@ -254,5 +244,5 @@ const FROM_LINE: Record<EvolveFrom['from'], string> = {
 };
 
 export function evolvePrompt(o: { id: string; goal: string; from: EvolveFrom['from'] }): string {
-  return [`Integration: ${o.id} (${FROM_LINE[o.from]})`, `Goal: ${o.goal}`, '', `Follow CLAUDE.md. Work in ${o.id}/, and run ./check before you stop.`].join('\n');
+  return [`Integration: ${o.id} (${FROM_LINE[o.from]})`, `Goal: ${o.goal}`, '', `Follow CLAUDE.md. Work in ${o.id}/, and call the check tool before you stop.`].join('\n');
 }

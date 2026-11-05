@@ -8,6 +8,8 @@ import type { AgentEvent, AgentRunOptions, CliDriver } from './types.ts';
 const toml = (v: unknown): string => JSON.stringify(v); // strings and string arrays are valid TOML as JSON
 const tomlTable = (o: Record<string, string>) => `{${Object.entries(o).map(([k, v]) => `${JSON.stringify(k)} = ${JSON.stringify(v)}`).join(', ')}}`;
 
+const MCP_TIMEOUT_SECONDS = 420;
+
 export const codex: CliDriver = {
   args(o: AgentRunOptions): string[] {
     const a = ['exec'];
@@ -20,6 +22,8 @@ export const codex: CliDriver = {
       a.push('-c', `mcp_servers.${name}.command=${toml(s.command)}`, '-c', `mcp_servers.${name}.args=${toml(s.args)}`);
       // bloomterm's servers are ours and read-only (chat) or scoped by bloomd (evolve): no per-call approval.
       a.push('-c', `mcp_servers.${name}.default_tools_approval_mode="approve"`);
+      // Not Codex's default minute: bloomd's checks and try_dataset can take several.
+      a.push('-c', `mcp_servers.${name}.tool_timeout_sec=${MCP_TIMEOUT_SECONDS}`);
       if (s.env && Object.keys(s.env).length) a.push('-c', `mcp_servers.${name}.env=${tomlTable(s.env)}`);
     }
     if (o.model) a.push('-m', o.model);

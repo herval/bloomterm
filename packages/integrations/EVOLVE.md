@@ -8,7 +8,6 @@ You run in a folder made for this run. It holds:
 
 - `<id>/`: the integration you're working on, a copy of the owner's version, or of
   bloomterm's built-in, or empty if it's new. **This is the only thing you change.**
-- `./check`: bloomd's checks of `<id>/` (below). Run it as often as you like.
 - `sdk/`: the sources of `@bloomterm/sdk`, to read. Start at `sdk/integrations/sdk-surface.ts`.
 - `examples/`: bloomterm's built-in integrations, written the same way (`rss/` and `cvm/` for
   news, `brapi/` and `alpaca/` for market data, `b3/` for a browser adapter).
@@ -64,7 +63,7 @@ summary.
 
 bloomd runs your files with Node's own TypeScript support, which strips the types and runs
 what's left. So write only erasable TypeScript: no `enum`, no `namespace`, no constructor
-parameter properties; use `import type` for types. `./check` catches these.
+parameter properties; use `import type` for types. The `check` tool catches these.
 
 ## The routine
 
@@ -147,16 +146,15 @@ In `<id>/`:
   account, odd number formats, a missing optional field). Use `node:test` and
   `node:assert/strict`; read fixtures with `readFileSync(new URL('./fixtures/x.json',
   import.meta.url))`. Unit tests only: no browser, no network.
-- Run `./check` and fix what fails. It reports four things:
+- Call the `check` tool and fix what fails, as often as you like. It reports four things:
   - **loads**: Node imports `index.ts` the way bloomd will, and it exports a valid
     integration whose id is the folder's name;
   - **typecheck**: `tsc`, strict, against `@bloomterm/sdk`;
   - **tests**: every `*.test.ts` passes;
   - **README**: the sections the contract asks for are there.
-- What your shell may run depends on your CLI, and bloomd's instructions for this run say
-  which. Claude Code runs an allowlist (`./check`, `ls`) and reads files with Read, Glob and
-  Grep. Codex runs a shell sandboxed to this folder. A refused command doesn't mean the shell
-  is off.
+- How you work depends on your CLI, and bloomd's instructions for this run say which. Claude
+  Code has no shell, and reads files with Read, Glob and Grep. Codex runs a shell sandboxed to
+  this folder.
 
 ### 6. Verify against the live site
 
@@ -178,7 +176,7 @@ It counts against the site's rate limit, so fix what you can with unit tests fir
   data, rate limits, flaky parts), and under `## Verified` the date and what passed
   `try_dataset`.
 - `status: 'ready'` only if every dataset passed `try_dataset` in this run.
-- `./check` passes.
+- The `check` tool passes.
 - End with a summary for the owner: what changed, what passed, what's missing, and anything
   they need to do (sign in, record a session, add a key).
 

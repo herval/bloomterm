@@ -219,7 +219,6 @@ export class Assistant {
       mcp: { bloomterm: mcpServer(this.o.home, { portfolio: cfg.share_portfolio, evolve: { integration: meta.integration, run: chat.id } }) },
       web: cfg.web,
       writable: [`${meta.integration}/**`],
-      bash: ['./check', 'ls'],
       timeoutMs: 45 * 60_000,
       after: async (tool: Tool) => {
         if (this.o.evolve?.checks === false) return;

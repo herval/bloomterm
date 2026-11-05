@@ -284,11 +284,11 @@ built and repaired. It never changes bloomterm itself: what it makes lives in yo
 1. bloomd makes a folder for the run, `<home>/evolve/<source>-<time>/`, with a copy of the
    integration (yours, or the built-in's, or nothing if it's new), the routine
    ([packages/integrations/EVOLVE.md](packages/integrations/EVOLVE.md)) as its CLAUDE.md and
-   AGENTS.md, the SDK's sources, the built-ins as examples, and `./check`.
+   AGENTS.md, the SDK's sources, and the built-ins as examples.
 2. Your agent follows the routine. It looks for an official API first. Failing that, it finds the
    JSON calls the site's own pages make, using your HAR recordings and your signed-in browser
-   profile. Then it writes the strategies, scrubbed fixtures and tests, runs `./check`, and runs
-   `try_dataset` against the live site. It edits only the copy.
+   profile. Then it writes the strategies, scrubbed fixtures and tests, runs bloomd's checks, and
+   runs `try_dataset` against the live site. It edits only the copy.
 3. When it stops, bloomd runs the checks again: the copy loads the way bloomd will load it,
    typechecks against `@bloomterm/sdk`, passes its tests and has its README. The run shows them,
    with **Review diff** and **Approve**. You approve exactly the files the diff showed.
@@ -303,9 +303,9 @@ you approved is kept in `integrations/.history/`. `bt integrations` lists yours;
 `bt integrations remove <source>` takes one out.
 
 The agent never sees credentials: cookie, token and auth values are redacted before it gets
-anything. Everything it does to a site goes through the mutation guard, so it can't write. Its
-shell runs only `./check` and `ls` (Claude Code), or is sandboxed to the run's folder (Codex).
-`./check` and `try_dataset` run its code as you, so treat it as you would any coding agent's tests.
+anything. Everything it does to a site goes through the mutation guard, so it can't write. Claude
+Code gets no shell, and Codex's is sandboxed to the run's folder. bloomd's checks and `try_dataset`
+run its code as you, so treat it as you would any coding agent's tests.
 
 A good first run, after signing in to B3:
 

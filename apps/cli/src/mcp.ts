@@ -10,8 +10,8 @@ import { bloomtermHome, homePaths, parseSecurity, RANGES, type Bar } from '@bloo
 // bloomd; none of them changes anything. Kept free of the daemon's imports so it starts fast.
 //
 //   BLOOMTERM_MCP_PORTFOLIO=off   positions and balances are refused (config.toml: [agent] share_portfolio)
-//   --evolve                      adds EVOLVE's tools (SPEC §6.11): recordings, the signed-in browser and
-//                                 try_dataset, for the run in BLOOMTERM_EVOLVE_RUN on BLOOMTERM_EVOLVE_ID
+//   --evolve                      adds EVOLVE's tools (SPEC §6.11): recordings, the signed-in browser,
+//                                 check and try_dataset, for the run in BLOOMTERM_EVOLVE_RUN on BLOOMTERM_EVOLVE_ID
 //   BLOOMTERM_CHAT_ID=<chat>      adds ASK's chat tools (SPEC §10.5): that conversation's files, files
 //                                 written back, and cards proposing an import or connecting an account.
 //                                 Cards do nothing until the owner clicks them.
@@ -364,6 +364,14 @@ const EVOLVE_TOOLS: Tool[] = [
     description: "A GET with the signed-in profile's cookies, exactly as a `request` strategy makes it. Returns status, headers (credentials redacted) and body.",
     inputSchema: { type: 'object', properties: { url: { type: 'string' }, profile: { type: 'string' } }, required: ['url'] },
     run: (a) => api('/api/evolve/fetch', { integration, url: a.url, profile: a.profile }, 60_000),
+  },
+  {
+    name: 'check',
+    description:
+      "Runs bloomd's checks on this run's copy of the integration: it loads the way bloomd will load it, typechecks, passes its *.test.ts tests, and has its README. " +
+      'Returns each result, and in `output` what failed. Call it as often as you like, and before you stop.',
+    inputSchema: { type: 'object', properties: {} },
+    run: () => api(`/api/evolve/${encodeURIComponent(run)}/check`, {}, 7 * 60_000),
   },
   {
     name: 'try_dataset',

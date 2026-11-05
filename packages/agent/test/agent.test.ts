@@ -43,13 +43,12 @@ describe('claude driver', () => {
     expect(claudeArgs(bare).join(' ')).not.toMatch(/--mcp-config|--append-system-prompt/);
   });
 
-  it('lets evolve edit only the paths, and run only the commands, it was given', () => {
-    const a = claudeArgs({ ...chat, mode: 'evolve', writable: ['b3/**'], bash: ['./check', 'ls'] });
+  it('lets evolve edit only the paths it was given, with no shell', () => {
+    const a = claudeArgs({ ...chat, mode: 'evolve', writable: ['b3/**'] });
     expect(a).toContain('Edit(b3/**)');
     expect(a).toContain('Write(b3/**)');
     expect(a.some((x) => x.startsWith('Edit(') && !x.includes('b3'))).toBe(false);
-    expect(a.filter((x) => x.startsWith('Bash('))).toEqual(['Bash(./check:*)', 'Bash(ls:*)']);
-    expect(claudeArgs({ ...chat, mode: 'evolve' }).some((x) => x.startsWith('Bash('))).toBe(false);
+    expect(a.join(' ')).not.toContain('Bash');
     expect(a).not.toContain('WebFetch');
     expect(after(claudeArgs({ ...chat, mode: 'evolve', web: true }), '--tools')).toContain('WebFetch');
   });
@@ -82,6 +81,7 @@ describe('codex driver', () => {
     expect(a).toContain('web_search="disabled"');
     expect(a).toContain('mcp_servers.bloomterm.command="/x/tsx"');
     expect(a).toContain('mcp_servers.bloomterm.default_tools_approval_mode="approve"');
+    expect(a).toContain('mcp_servers.bloomterm.tool_timeout_sec=420');
     expect(a).toContain('mcp_servers.bloomterm.env={"BLOOMTERM_HOME" = "/h"}');
     expect(a.at(-1)).toBe('-');
     expect(a.join(' ')).not.toMatch(/PETR4|be brief/);

@@ -569,8 +569,7 @@ changes bloomterm itself, so it works the same from a checkout and in the deskto
      `<home>/integrations/<id>/` if there is one, else from the built-in's source (its imports
      pointed at `@bloomterm/sdk`), else empty;
    - `CLAUDE.md` and `AGENTS.md`: the routine, `packages/integrations/EVOLVE.md`;
-   - `sdk/` (the SDK's sources) and `examples/` (the built-ins), to read;
-   - `./check`, which runs bloomd's checks on `<id>/`.
+   - `sdk/` (the SDK's sources) and `examples/` (the built-ins), to read.
 2. **The routine.** Your agent CLI (§10.1) runs there in `evolve` mode and follows it:
    1. Read what's there and why it last failed.
    2. Look for an official API first.
@@ -638,12 +637,13 @@ long digit runs in URLs and text are masked.
 - Claude may:
   - read anything in the run's folder;
   - edit only `<id>/`;
-  - run `./check` and `ls`;
   - use WebSearch and WebFetch while `[agent] web` is on, to read API docs.
-- Codex gets a `workspace-write` sandbox on the run's folder.
+- Claude has no shell. Codex gets a `workspace-write` sandbox on the run's folder.
+- Both run bloomd's checks with the `check` tool, on every system: a shell script wouldn't run on
+  Windows.
 - Neither can approve its work, and nothing it writes outside `<id>/` is kept.
 
-**Trust.** `./check`, bloomd's checks and `try_dataset` run the agent's code as you, the same trust
+**Trust.** bloomd's checks and `try_dataset` run the agent's code as you, the same trust
 you give a coding agent's tests. The approval gate stops mistakes from running on a schedule, not a
 hostile agent: code that runs as you could call bloomd's API itself. The mutation guard, credential
 firewall and rate limits still apply to everything that touches a site.

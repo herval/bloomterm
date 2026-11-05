@@ -20,8 +20,8 @@ export interface McpServer {
  * What the agent may do.
  * - `chat`: answer questions. Read-only bloomterm tools (MCP), optional web search; no shell,
  *   no file access.
- * - `evolve`: build or repair an integration. Reads its folder, edits only `writable` paths, runs
- *   only the `bash` commands (its checks); plus bloomterm's tools for the browser.
+ * - `evolve`: build or repair an integration. Reads its folder, edits only `writable` paths; plus
+ *   bloomterm's tools for its checks and the browser.
  */
 export type AgentMode = 'chat' | 'evolve';
 
@@ -38,8 +38,6 @@ export interface AgentRunOptions {
   web?: boolean;
   /** evolve: path globs, relative to cwd, the agent may edit. */
   writable?: string[];
-  /** evolve: command prefixes the agent's shell may run, where the CLI has an allowlist (Claude Code). */
-  bash?: string[];
   model?: string;
   env?: Record<string, string>;
   signal?: AbortSignal;

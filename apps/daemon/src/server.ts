@@ -309,6 +309,7 @@ export function buildServer(daemon: Daemon, token: string, webRoot?: string): Fa
     reply.code(202);
     return { chatId: chat.id, seq, dir };
   });
+  app.post<{ Params: { run: string } }>('/api/evolve/:run/check', async (req) => daemon.assistant.checkRun(req.params.run));
   app.post<{ Params: { run: string } }>('/api/evolve/:run/approve', async (req) => daemon.approveRun(req.params.run, ApproveBody.parse(req.body ?? {})));
   app.get('/api/evolve/recordings', async () => daemon.recordings());
   app.get<{ Params: { file: string } }>('/api/evolve/recordings/:file', async (req) => daemon.recording(req.params.file, RecordingQuery.parse(req.query)));

@@ -26,7 +26,7 @@ export const claude: CliDriver = {
       const writable = o.writable ?? [];
       // With web on, it can look for the institution's API docs.
       const web = o.web ? ['WebSearch', 'WebFetch'] : [];
-      a.push('--tools', ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash', ...web].join(','));
+      a.push('--tools', ['Read', 'Glob', 'Grep', 'Edit', 'Write', ...web].join(','));
       a.push(
         '--allowedTools',
         ...mcpAllow,
@@ -35,7 +35,6 @@ export const claude: CliDriver = {
         'Glob',
         'Grep',
         ...writable.flatMap((p) => [`Edit(${p})`, `Write(${p})`]),
-        ...(o.bash ?? []).map((c) => `Bash(${c}:*)`),
       );
     }
     if (o.system) a.push('--append-system-prompt-file', join(dir, SYSTEM));
