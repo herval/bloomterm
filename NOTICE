@@ -24,4 +24,7 @@ Node.js (bundled in the desktop app)
 Copyright Node.js contributors. MIT License, plus the licenses of its dependencies:
 https://github.com/nodejs/node/blob/main/LICENSE
 
+jsdiff (https://github.com/kpdecker/jsdiff)
+Copyright (c) 2009-2015, Kevin Decker <kpdecker@gmail.com>. BSD 3-Clause License.
+
 better-sqlite3 (MIT) and SQLite (public domain), bundled in the desktop app.

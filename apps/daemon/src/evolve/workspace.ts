@@ -94,7 +94,7 @@ export const checksLine = (c: Checks) =>
 
 async function exitOf(cmd: string, args: string[], o: { cwd?: string; env?: Record<string, string>; timeoutMs: number }): Promise<{ ok: boolean; output: string }> {
   try {
-    const { stdout, stderr } = await run(cmd, args, { cwd: o.cwd, env: { ...agentEnv(), NODE_NO_WARNINGS: '1', ...o.env }, timeout: o.timeoutMs, maxBuffer: 16 * 1024 * 1024 });
+    const { stdout, stderr } = await run(cmd, args, { cwd: o.cwd, env: { ...agentEnv(), NODE_NO_WARNINGS: '1', ...o.env }, timeout: o.timeoutMs, maxBuffer: 16 * 1024 * 1024, windowsHide: true });
     return { ok: true, output: `${stdout}${stderr}` };
   } catch (err: any) {
     return { ok: false, output: `${err.stdout ?? ''}${err.stderr ?? ''}${err.killed ? '\n(timed out)' : ''}` || String(err.message) };
@@ -106,7 +106,9 @@ async function typecheck(folder: string): Promise<{ ok: boolean; output: string 
   const { kit } = layout();
   const tmp = await mkdtemp(join(tmpdir(), 'bt-check-'));
   try {
-    const src = (p: string) => [join(kit.root, p)];
+    // Forward slashes, on Windows too: `include` finds nothing with backslashes.
+    const path = (...parts: string[]) => join(...parts).replaceAll('\\', '/');
+    const src = (p: string) => [path(kit.root, p)];
     const tsconfig = {
       compilerOptions: {
         target: 'ES2023',
@@ -114,7 +116,7 @@ async function typecheck(folder: string): Promise<{ ok: boolean; output: string 
         moduleResolution: 'Bundler',
         lib: ['ES2023', 'DOM'],
         types: ['node'],
-        typeRoots: [join(kit.root, 'node_modules/@types')],
+        typeRoots: [path(kit.root, 'node_modules/@types')],
         strict: true,
         noUncheckedIndexedAccess: true,
         noImplicitOverride: true,
@@ -130,7 +132,7 @@ async function typecheck(folder: string): Promise<{ ok: boolean; output: string 
           '@bloomterm/browser': src('packages/browser/src/index.ts'),
         },
       },
-      include: [join(folder, '**/*.ts')],
+      include: [path(folder, '**/*.ts')],
     };
     await writeFile(join(tmp, 'tsconfig.json'), JSON.stringify(tsconfig));
     // From the folder, so tsc names its files relative to it.

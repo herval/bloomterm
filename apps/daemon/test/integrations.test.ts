@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { consoleLogger } from '@bloomterm/browser';
@@ -64,6 +64,48 @@ describe('your integrations', () => {
     expect(diff).toMatchObject({ base: 'yours' });
     expect(diff.diff).toContain('+++ b/notes.md');
     expect(diff.diff).toContain('+an edit');
+  });
+
+  it('shows everything approving would change in the diff, and nothing else', async () => {
+    const local = new LocalIntegrations({ home, builtins: [], log });
+    const folder = join(home, 'integrations', 'mine');
+    const lines = Array.from({ length: 30 }, (_, i) => `line ${i}`);
+    await write(folder, source('mine'));
+    await mkdir(join(folder, 'deep'));
+    await writeFile(join(folder, 'deep', 'notes.md'), `${lines.join('\n')}\n`);
+    await writeFile(join(folder, 'gone.md'), 'going\n');
+    await writeFile(join(folder, 'same.md'), 'staying\n');
+    await writeFile(join(folder, 'logo.png'), Buffer.from([1, 0, 2]));
+    await local.approve('mine', folder);
+    expect((await local.diff('mine', folder)).diff).toBe('');
+
+    lines[15] = 'changed';
+    await writeFile(join(folder, 'deep', 'notes.md'), `${lines.join('\n')}\n`);
+    await rm(join(folder, 'gone.md'));
+    await writeFile(join(folder, 'logo.png'), Buffer.from([1, 0, 3]));
+    await writeFile(join(folder, 'latin.txt'), Buffer.from([0xe9]));
+    await writeFile(join(folder, 'empty.ts'), '');
+    await writeFile(join(folder, '.DS_Store'), 'Finder');
+
+    const { diff } = await local.diff('mine', folder);
+    expect(diff).toContain('--- a/deep/notes.md\n+++ b/deep/notes.md\n@@ -13,7 +13,7 @@\n line 12\n');
+    expect(diff).toContain('-line 15\n+changed\n');
+    expect(diff).toContain('--- a/gone.md\n+++ b/gone.md\n@@ -1,1 +0,0 @@\n-going\n');
+    expect(diff).toContain('Binary files a/logo.png and b/logo.png differ\n');
+    expect(diff).toContain('Binary files a/latin.txt and b/latin.txt differ\n');
+    expect(diff).toContain('--- a/empty.ts\n+++ b/empty.ts\n');
+    expect(diff).not.toContain('same.md');
+    expect(diff).not.toContain('.DS_Store');
+    expect(diff).not.toContain(home);
+  });
+
+  it.skipIf(process.platform === 'win32')('shows a link as what it points to', async () => {
+    const local = new LocalIntegrations({ home, builtins: [], log });
+    const folder = join(home, 'integrations', 'mine');
+    await write(folder, source('mine'));
+    await local.approve('mine', folder);
+    await symlink('/etc/hosts', join(folder, 'hosts'));
+    expect((await local.diff('mine', folder)).diff).toContain('+link to /etc/hosts');
   });
 
   it("keeps what didn't load off, with the reason", async () => {

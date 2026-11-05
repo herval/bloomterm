@@ -1,12 +1,12 @@
-import { execFile } from 'node:child_process';
+import { isUtf8 } from 'node:buffer';
 import { existsSync } from 'node:fs';
-import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, readlink, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { promisify } from 'node:util';
+import { join, relative, sep } from 'node:path';
 import { homePaths } from '@bloomterm/core';
 import type { Logger } from '@bloomterm/browser';
 import { checkRegistry, folderHash, importIntegration, type Integration } from '@bloomterm/integrations';
+import { createTwoFilesPatch, FILE_HEADERS_ONLY } from 'diff';
 import { copyBuiltin, INTEGRATION_ID, type EvolveFrom } from './evolve/workspace.ts';
 import { layout } from './layout.ts';
 
@@ -15,8 +15,6 @@ import { layout } from './layout.ts';
 // approved, and a copy of it in .history/<id>/. A folder whose files changed since stays off
 // (the built-in runs instead, if there is one) until you approve it again. Yours replaces the
 // built-in with the same id; a new id is added after the built-ins.
-
-const run = promisify(execFile);
 
 export interface Approval {
   hash: string;
@@ -204,15 +202,37 @@ export class LocalIntegrations {
   }
 }
 
-/** `diff -ruN`, with a/ and b/ in place of the two folders. */
-async function unifiedDiff(a: string, b: string): Promise<string> {
-  let out: string;
-  try {
-    out = (await run('/usr/bin/diff', ['-ruN', '-x', '.DS_Store', a, b], { maxBuffer: 16 * 1024 * 1024 })).stdout;
-  } catch (err: any) {
-    // 1 means they differ.
-    if (err.code !== 1) throw err;
-    out = err.stdout;
+/** A folder as you review it: every file by its /-separated path, and each link as what it points to. */
+async function contents(dir: string): Promise<Map<string, Buffer>> {
+  const files = new Map<string, Buffer>();
+  if (!existsSync(dir)) return files;
+  for (const e of await readdir(dir, { recursive: true, withFileTypes: true })) {
+    if (e.name === '.DS_Store') continue;
+    const path = join(e.parentPath, e.name);
+    const name = relative(dir, path).replaceAll(sep, '/');
+    if (e.isFile()) files.set(name, await readFile(path));
+    else if (e.isSymbolicLink()) files.set(name, Buffer.from(`link to ${await readlink(path)}\n`));
   }
-  return out.split(`${a}/`).join('a/').split(`${b}/`).join('b/').split(a).join('a').split(b).join('b');
+  return files;
+}
+
+const isBinary = (b: Buffer) => b.includes(0) || !isUtf8(b);
+
+/** A unified diff of two folders, with a/ and b/ in place of their names. A missing file counts as empty. */
+async function unifiedDiff(a: string, b: string): Promise<string> {
+  const [before, after] = await Promise.all([contents(a), contents(b)]);
+  const out: string[] = [];
+  for (const name of [...new Set([...before.keys(), ...after.keys()])].sort()) {
+    const x = before.get(name);
+    const y = after.get(name);
+    if (x && y && x.equals(y)) continue;
+    const [from, to] = [x ?? Buffer.alloc(0), y ?? Buffer.alloc(0)];
+    const patch =
+      isBinary(from) || isBinary(to)
+        ? `Binary files a/${name} and b/${name} differ\n`
+        : createTwoFilesPatch(`a/${name}`, `b/${name}`, from.toString(), to.toString(), undefined, undefined, { context: 3, headerOptions: FILE_HEADERS_ONLY, timeout: 5_000 });
+    // You approve what this shows, so a file too changed to compare still says it changed.
+    out.push(patch ?? `Files a/${name} and b/${name} differ (too much to compare line by line)\n`);
+  }
+  return out.join('');
 }
