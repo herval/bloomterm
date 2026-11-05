@@ -53,7 +53,12 @@ function Stops { (Select-String -Path $log -Pattern 'stopping.*shutdown').Count 
 
 function Version { (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -EQ 'bloomterm').DisplayVersion }
 
-function OpensAtLogin { (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').PSObject.Properties.Value -match 'bloomterm\.exe.*--hidden' }
+# An app running as admin, as it does here, writes to HKLM; anyone else's to HKCU.
+function OpensAtLogin {
+  foreach ($hive in 'HKCU:', 'HKLM:') {
+    (Get-ItemProperty "$hive\Software\Microsoft\Windows\CurrentVersion\Run").PSObject.Properties.Value -match 'bloomterm\.exe.*--hidden'
+  }
+}
 
 function StartApp {
   Start-Process $exe
@@ -119,12 +124,14 @@ Check 'Restart bloomd restarts it' {
 }
 
 Write-Host '--- closing the window'
-Check 'it keeps bloomd running' {
+# By title: the app always has an invisible window, so it always has a main window handle.
+Check 'it hides, and bloomd keeps running' {
   (Get-Process bloomterm).CloseMainWindow() | Out-Null
   Start-Sleep -Seconds 2
-  (Healthy) -and (Get-Process bloomterm).MainWindowHandle -eq 0
+  Screenshot 'closed' | Out-Null
+  (Healthy) -and -not (Get-Process bloomterm).MainWindowTitle
 }
-Check 'opening the app again shows it' { Start-Process $exe; WaitFor 10 { (Get-Process bloomterm).MainWindowHandle -ne 0 } }
+Check 'opening the app again shows it' { Start-Process $exe; WaitFor 10 { (Get-Process bloomterm).MainWindowTitle -eq 'bloomterm' } }
 
 Write-Host '--- quitting'
 Check 'Quit stops the app and bloomd' { & $exe --menu=quit; Stopped }
@@ -145,6 +152,10 @@ if ($Update) {
   Check 'it downloads the update by itself' { WaitFor 90 { Select-String -Quiet -Path $requests -Pattern 'GET /bloomterm-setup.exe' } }
   Start-Sleep -Seconds 3
   Check 'a screenshot of the toast' { Screenshot 'update-ready' }
+  Check 'the toast reaches the notification center' {
+    $history = "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('app.bloomterm.desktop').Count"
+    [int] (powershell.exe -NoProfile -Command $history) -gt 0
+  }
   Start-Sleep -Seconds 3
   $stops = Stops
   & $exe --menu=update
