@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BrowserHost, ChromeNotFoundError, consoleLogger, findChrome } from '../src/index.ts';
 
 // Where bloomterm finds Chrome, with made-up app folders and a made-up Spotlight. The "Chrome"
-// inside each is a shell script, so nothing real is launched. These are the Mac's lookups, so they
-// don't run on Windows.
+// inside each is a shell script, so nothing real is launched. The Mac's lookups don't run on
+// Windows; Windows' run everywhere, on empty files.
 
 let root: string;
 const apps = () => join(root, 'Applications');
@@ -92,5 +92,43 @@ describe.skipIf(process.platform === 'win32')('the browser host', () => {
     expect(err).toBeInstanceOf(ChromeNotFoundError);
     expect(err.message).toMatch(/Gone\.app.*config\.toml/);
     expect(missing.runtime('finance').gate.paused).toBe(false);
+  });
+});
+
+describe('finding Chrome on Windows', () => {
+  const windows = (dirs: string[]) => findChrome({ dirs, platform: 'win32' });
+
+  /** A "chrome.exe" where the installer would put it. */
+  async function install(dir: string, folder = 'Chrome'): Promise<string> {
+    const exe = join(dir, 'Google', folder, 'Application', 'chrome.exe');
+    await mkdir(join(exe, '..'), { recursive: true });
+    await writeFile(exe, '', { mode: 0o755 });
+    return exe;
+  }
+
+  it('looks where the installer puts it, stable Chrome first', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'bloomterm-chrome-'));
+    try {
+      const [everyone, you] = [join(root, 'Program Files'), join(root, 'Local')];
+      expect(await windows([everyone, you])).toBeNull();
+      const canary = await install(you, 'Chrome SxS');
+      expect(await windows([everyone, you])).toEqual({ app: null, executable: canary, how: 'applications' });
+      const beta = await install(everyone, 'Chrome Beta');
+      expect((await windows([everyone, you]))?.executable).toBe(beta);
+      const stable = await install(you);
+      expect((await windows([everyone, you]))?.executable).toBe(stable);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('takes the one config.toml names, wherever it is', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'bloomterm-chrome-'));
+    try {
+      const exe = await install(root);
+      expect(await findChrome({ configured: exe, dirs: [], platform: 'win32' })).toEqual({ app: null, executable: exe, how: 'config' });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

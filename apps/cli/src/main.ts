@@ -1,6 +1,6 @@
 #!/usr/bin/env -S npx tsx
 import { execFile } from 'node:child_process';
-import { basename, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { findAgents } from '@bloomterm/agent';
 import { bloomtermHome } from '@bloomterm/core';
@@ -79,6 +79,9 @@ async function main(argv: string[]): Promise<number> {
       await runDaemon({ port: v.port ? Number(v.port) : undefined });
       return -1; // keep running
     }
+    if ((sub === 'install' || sub === 'uninstall') && process.platform !== 'darwin') {
+      throw new Error('`bt daemon install` is for macOS. Elsewhere, the desktop app runs bloomd, or run `bt daemon` in a terminal.');
+    }
     if (sub === 'install') {
       if (v.print) {
         console.log(buildPlist(home));
@@ -138,7 +141,7 @@ async function main(argv: string[]): Promise<number> {
       const url = `${c.base}/#code=${code}`;
       if (v.print) console.log(url);
       else {
-        execFile('open', [url]);
+        openLink(url);
         console.log(`opened ${c.base}`);
       }
       return 0;
@@ -402,6 +405,12 @@ function runState(m: any): string {
   if (m.approved) return 'approved';
   if (m.checks) return m.checks.ok ? 'checks pass' : 'checks fail';
   return m.branch ? `old: ${m.branch}` : '-';
+}
+
+/** In your default browser. Through rundll32 on Windows: `start` would need cmd.exe. */
+function openLink(url: string): void {
+  if (process.platform !== 'win32') execFile('open', [url]);
+  else execFile(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'rundll32.exe'), ['url.dll,FileProtocolHandler', url], { windowsHide: true });
 }
 
 function localState(l: any): string {

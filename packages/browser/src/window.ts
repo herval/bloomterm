@@ -98,8 +98,9 @@ export async function activatePid(pid: number): Promise<void> {
   }
 }
 
-/** The main Chrome process for a profile dir (not its helpers). */
+/** The main Chrome process for a profile dir (not its helpers), for handing focus back (macOS). */
 export async function profileAppPid(profileDir: string): Promise<number | null> {
+  if (platform() !== 'darwin') return null;
   try {
     const { stdout } = await run('pgrep', ['-f', `--user-data-dir=${profileDir}`]);
     for (const pid of stdout.split('\n').filter(Boolean)) {
