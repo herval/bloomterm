@@ -19,6 +19,9 @@ function appleString(s: string): string {
 /** The app's id, which its installer gives the Start menu shortcut: Windows shows toasts under the app it belongs to. */
 const APP_ID = 'app.bloomterm.desktop';
 
+/** The script's last line says this, so a script that never ran doesn't look like one that worked. */
+const SHOWN = 'shown';
+
 const TOAST = `$ErrorActionPreference = 'Stop'
 $manager = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
 $xml = $manager::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
@@ -26,6 +29,7 @@ $text = $xml.GetElementsByTagName('text')
 [void]$text.Item(0).AppendChild($xml.CreateTextNode($env:BLOOMTERM_TOAST_TITLE))
 [void]$text.Item(1).AppendChild($xml.CreateTextNode($env:BLOOMTERM_TOAST_MESSAGE))
 $manager::CreateToastNotifier('${APP_ID}').Show([Windows.UI.Notifications.ToastNotification]::new($xml))
+'${SHOWN}'
 `;
 
 /**
@@ -44,7 +48,7 @@ export function toast(title: string, message: string): Promise<{ ok: boolean; ou
     child.stderr.on('data', (d) => (output += d));
     child.stdin.on('error', () => {});
     child.on('error', (err) => resolve({ ok: false, output: err.message }));
-    child.on('close', (code) => resolve({ ok: code === 0 && !output.trim(), output }));
+    child.on('close', (code) => resolve({ ok: code === 0 && output.trim() === SHOWN, output: output.trim() }));
     child.stdin.end(TOAST);
   });
 }

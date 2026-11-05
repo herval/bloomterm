@@ -13,6 +13,6 @@ describe('desktop notifications', () => {
   });
 
   it.runIf(process.platform === 'win32')('shows a toast, whatever the text says', async () => {
-    expect(await toast(`"; Write-Error 'injected'; "`, `$(Write-Error 'injected') <b>&'\nline two`)).toEqual({ ok: true, output: '' });
+    expect(await toast(`"; Write-Error 'injected'; "`, `$(Write-Error 'injected') <b>&'\nline two`)).toEqual({ ok: true, output: 'shown' });
   }, 30_000);
 });

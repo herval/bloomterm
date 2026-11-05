@@ -35,6 +35,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:unit
         if: ${{ !cancelled() }}
+      # bloomterm driving the runner's real Chrome. Not the web app's tests: on Windows that runs in
+      # WebView2, which this wouldn't touch.
+      - run: pnpm vitest run --project browser packages/browser apps/daemon
+        if: ${{ !cancelled() }}
       # A real Codex, without a model or a sign-in: does its sandbox hold on Windows?
       - run: npm install -g @openai/codex@0.166.0
         if: ${{ !cancelled() }}
