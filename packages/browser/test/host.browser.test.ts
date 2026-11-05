@@ -259,9 +259,10 @@ describe('BrowserHost against a fake bank', () => {
     const result = await host.run('fakebank', 'positions');
     expect(result.method).toBe('request');
     expect(result.data).toEqual(POSITIONS);
-    expect((await stat(result.rawDir)).mode & 0o777).toBe(0o700);
     const files = await readdir(result.rawDir);
     expect(files.some((f) => f.includes('fetch-'))).toBe(true);
+    if (process.platform === 'win32') return; // Windows has no such modes
+    expect((await stat(result.rawDir)).mode & 0o777).toBe(0o700);
     for (const f of files) expect((await stat(join(result.rawDir, f))).mode & 0o777).toBe(0o600);
   });
 

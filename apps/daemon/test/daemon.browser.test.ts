@@ -100,7 +100,7 @@ afterAll(async () => {
 
 describe('bloomd', () => {
   it('writes a private token and a state file', async () => {
-    expect((await stat(join(home, 'token'))).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect((await stat(join(home, 'token'))).mode & 0o777).toBe(0o600); // Windows has no such modes
     expect(JSON.parse(await readFile(stateFile(home), 'utf8'))).toMatchObject({ pid: process.pid, port: daemon.port });
   });
 
