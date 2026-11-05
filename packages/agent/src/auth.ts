@@ -1,9 +1,6 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { runCli } from './launch.ts';
 import { agentEnv } from './run.ts';
 import type { AgentCli } from './types.ts';
-
-const run = promisify(execFile);
 
 /**
  * Whether the agent CLI is signed in, by asking it, in the environment its runs get. null when
@@ -15,7 +12,7 @@ const run = promisify(execFile);
 export async function signedIn(cli: AgentCli): Promise<boolean | null> {
   const opts = { timeout: 15_000, env: agentEnv() };
   if (cli.kind === 'claude') {
-    const out = await run(cli.path, ['auth', 'status', '--json'], opts).then(
+    const out = await runCli(cli.path, ['auth', 'status', '--json'], opts).then(
       (r) => r.stdout,
       (err) => String(err?.stdout ?? ''),
     );
@@ -27,7 +24,7 @@ export async function signedIn(cli: AgentCli): Promise<boolean | null> {
     }
   }
   try {
-    await run(cli.path, ['login', 'status'], opts);
+    await runCli(cli.path, ['login', 'status'], opts);
     return true;
   } catch (err: any) {
     return /not logged in/i.test(`${err?.stdout ?? ''}\n${err?.stderr ?? ''}`) ? false : null;

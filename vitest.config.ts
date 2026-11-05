@@ -6,6 +6,9 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
+          // Some start real processes (a fake agent, then the real `bt mcp`): quick alone, not on a
+          // busy machine or a Windows runner.
+          testTimeout: 30_000,
           // Integrations keep their tests in their own folder, next to the fixtures (packages/integrations/CLAUDE.md).
           include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'packages/integrations/src/**/*.test.ts'],
           exclude: ['**/*.browser.test.ts', '**/*.headed.test.ts', '**/node_modules/**'],

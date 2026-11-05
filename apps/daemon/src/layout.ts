@@ -57,7 +57,7 @@ export function layout(): Layout {
     root,
     // The symlinked path, not pnpm's versioned store path, so upgrading tsx doesn't break it.
     bt: [process.execPath, join(root, 'node_modules/tsx/dist/cli.mjs'), join(root, 'apps/cli/src/main.ts')],
-    mcp: [join(root, 'node_modules/.bin/tsx'), join(root, 'apps/cli/src/mcp-main.ts')],
+    mcp: [process.execPath, join(root, 'node_modules/tsx/dist/cli.mjs'), join(root, 'apps/cli/src/mcp-main.ts')],
     web: join(root, 'apps/web/dist'),
     integrationsSrc: join(root, 'packages/integrations/src'),
     routine: join(root, 'packages/integrations/EVOLVE.md'),

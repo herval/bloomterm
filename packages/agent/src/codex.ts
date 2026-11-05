@@ -23,9 +23,13 @@ export const codex: CliDriver = {
       if (s.env && Object.keys(s.env).length) a.push('-c', `mcp_servers.${name}.env=${tomlTable(s.env)}`);
     }
     if (o.model) a.push('-m', o.model);
-    a.push(o.system && !o.resume ? `${o.system}\n\n---\n\n${o.prompt}` : o.prompt);
+    a.push('-'); // the prompt comes on stdin
     return a;
   },
+
+  input: (o) => (o.system && !o.resume ? `${o.system}\n\n---\n\n${o.prompt}` : o.prompt),
+
+  files: () => ({}),
 
   parser() {
     const messages: string[] = [];

@@ -64,9 +64,17 @@ export interface AgentResult {
   costUsd?: number;
 }
 
-/** How one CLI is driven: its arguments, and how its output lines map to events. */
+/** How one CLI is driven: how a run is passed to it, and how its output lines map to events. */
 export interface CliDriver {
-  args(o: AgentRunOptions): string[];
+  /**
+   * The command line for a run. Nothing long or private goes here: Windows caps a command line at
+   * 32,767 characters, and any program can read one. Those go in `input` and `files`.
+   */
+  args(o: AgentRunOptions, dir: string): string[];
+  /** What the CLI reads on stdin: the prompt. */
+  input(o: AgentRunOptions): string;
+  /** Files `args` points at, by name, in `dir`: a private folder that lasts as long as the run. */
+  files(o: AgentRunOptions): Record<string, string>;
   /** One stdout line (JSON) → zero or more events. Keeps its own state across lines. */
   parser(): (line: unknown) => AgentEvent[];
 }

@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { AgentEvent, AgentRunOptions, CliDriver } from './types.ts';
 
 // Claude Code in print mode (`claude -p`), streaming JSON. It runs on your Claude
@@ -8,14 +9,15 @@ import type { AgentEvent, AgentRunOptions, CliDriver } from './types.ts';
 //   --permission-mode dontAsk + --permission-prompts none
 //                                     anything not allowed below is refused, never asked
 
+const SYSTEM = 'system.md';
+const MCP = 'mcp.json';
+const hasMcp = (o: AgentRunOptions) => !!o.mcp && Object.keys(o.mcp).length > 0;
+
 export const claude: CliDriver = {
-  args(o: AgentRunOptions): string[] {
-    const a = ['-p', o.prompt, '--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
+  args(o: AgentRunOptions, dir: string): string[] {
+    const a = ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
     a.push('--setting-sources', 'project,local', '--strict-mcp-config', '--permission-mode', 'dontAsk', '--permission-prompts', 'none');
-    if (o.mcp && Object.keys(o.mcp).length) {
-      const servers = Object.fromEntries(Object.entries(o.mcp).map(([name, s]) => [name, { type: 'stdio', command: s.command, args: s.args, env: s.env ?? {} }]));
-      a.push('--mcp-config', JSON.stringify({ mcpServers: servers }));
-    }
+    if (hasMcp(o)) a.push('--mcp-config', join(dir, MCP));
     const mcpAllow = Object.keys(o.mcp ?? {}).map((name) => `mcp__${name}`);
     if (o.mode === 'chat') {
       a.push('--tools', o.web ? 'WebSearch' : '');
@@ -36,10 +38,22 @@ export const claude: CliDriver = {
         ...(o.bash ?? []).map((c) => `Bash(${c}:*)`),
       );
     }
-    if (o.system) a.push('--append-system-prompt', o.system);
+    if (o.system) a.push('--append-system-prompt-file', join(dir, SYSTEM));
     if (o.resume) a.push('--resume', o.resume);
     if (o.model) a.push('--model', o.model);
     return a;
+  },
+
+  input: (o) => o.prompt,
+
+  files(o: AgentRunOptions): Record<string, string> {
+    const files: Record<string, string> = {};
+    if (o.system) files[SYSTEM] = o.system;
+    if (hasMcp(o)) {
+      const servers = Object.fromEntries(Object.entries(o.mcp!).map(([name, s]) => [name, { type: 'stdio', command: s.command, args: s.args, env: s.env ?? {} }]));
+      files[MCP] = JSON.stringify({ mcpServers: servers });
+    }
+    return files;
   },
 
   parser() {

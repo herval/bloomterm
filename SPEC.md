@@ -1118,6 +1118,9 @@ it found.
   - Claude: `--setting-sources project,local --strict-mcp-config`, plus `--permission-mode dontAsk`
     with an allowlist.
   - Codex: `--ignore-user-config`, plus a sandbox.
+- **Nothing on the command line.** The prompt goes on stdin. Claude's instructions and MCP config go in
+  a private folder that lasts as long as the run. Any program can read a command line, and Windows caps
+  one at 32,767 characters.
 - **Modes.**
   - `chat` (ASK): only bloomterm's MCP tools, plus web search while `[agent] web = true`. Codex runs
     read-only.

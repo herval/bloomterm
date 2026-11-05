@@ -35,6 +35,13 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:unit
         if: ${{ !cancelled() }}
+      # A real Codex, without a model or a sign-in: does its sandbox hold on Windows?
+      - run: npm install -g @openai/codex@0.166.0
+        if: ${{ !cancelled() }}
+      - run: pnpm vitest run --project unit packages/agent/test/codex-sandbox.test.ts
+        if: ${{ !cancelled() }}
+        env:
+          BLOOMTERM_CODEX_SANDBOX: 1
       - uses: Swatinem/rust-cache@v2
         if: ${{ !cancelled() }}
         with:

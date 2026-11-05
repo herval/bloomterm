@@ -7,11 +7,14 @@
 // With attached files ("[files: …") or a question about connecting an account, it starts the
 // real `bt mcp` from --mcp-config and calls the chat tools, as an agent would.
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 const argv = process.argv.slice(2);
 const arg = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
-const prompt = arg('-p') ?? '';
+const prompt = await new Promise((resolve) => {
+  let text = '';
+  process.stdin.setEncoding('utf8').on('data', (d) => (text += d)).on('end', () => resolve(text));
+});
 const session = arg('--resume') ?? 'fake-session-1';
 const question = prompt.split('\n').at(-1);
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n');
@@ -63,7 +66,7 @@ if (evolve) {
 /** bloomterm's MCP server, as the agent CLI would start it; each call shows as a tool call. */
 let stopMcp = () => {};
 async function mcp() {
-  const cfg = JSON.parse(arg('--mcp-config')).mcpServers.bloomterm;
+  const cfg = JSON.parse(readFileSync(arg('--mcp-config'), 'utf8')).mcpServers.bloomterm;
   const child = spawn(cfg.command, cfg.args, { env: { ...process.env, ...cfg.env }, stdio: ['pipe', 'pipe', 'inherit'] });
   const waiting = new Map();
   createInterface({ input: child.stdout }).on('line', (l) => {
