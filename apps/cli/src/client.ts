@@ -5,7 +5,7 @@ export class NotRunningError extends Error {
   constructor() {
     super(
       layout().kind === 'bundle'
-        ? "bloomd isn't running. Open bloomterm.app, which runs it, or run `bt daemon`."
+        ? "bloomd isn't running. Open the bloomterm app, which runs it, or run `bt daemon`."
         : "bloomd isn't running. Start it with `pnpm bt daemon`, or `pnpm bt daemon install` to run it at login.",
     );
   }

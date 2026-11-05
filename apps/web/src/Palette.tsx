@@ -6,6 +6,7 @@ import { pct, price } from './format.ts';
 import { FN, FN_SET } from './functions.ts';
 import { Icon, type IconName } from './icons.tsx';
 import { DEFAULT_WATCHLISTS, type Watchlists } from './layout.ts';
+import { shortcut } from './platform.ts';
 import { navigate, secPath } from './router.tsx';
 import { useShell } from './shell.ts';
 import { setThemePref } from './theme.ts';
@@ -34,7 +35,7 @@ export const PAGES: { label: string; path: string; icon: IconName; hint?: string
   { label: 'Terminal', path: '/terminal', icon: 'terminal', words: 'panels board grid' },
   { label: 'Sources', path: '/sources', icon: 'sources', hint: 'SRC', words: 'integrations login evolve feeds' },
   { label: 'Jobs', path: '/jobs', icon: 'jobs', hint: 'JOBS', words: 'runs failures' },
-  { label: 'Settings', path: '/settings', icon: 'settings', hint: 'SET', words: 'api keys keychain' },
+  { label: 'Settings', path: '/settings', icon: 'settings', hint: 'SET', words: 'api keys keychain credential manager' },
   { label: 'Setup', path: '/setup', icon: 'check', words: 'install chrome claude codex agent sign in first run' },
   { label: 'Help', path: '/help', icon: 'help', hint: 'HELP', words: 'functions keys mnemonics' },
 ];
@@ -89,7 +90,7 @@ export function Palette({ initial, onClose, followed, held }: { initial: string;
       }
     }
     if (t && !/^evolve\b/i.test(t)) {
-      out.push({ id: 'ask', group: 'Ask', label: t.endsWith('?') ? t : `${t}`, sub: 'ask your agent', icon: 'spark', hint: '⌘↵', run: () => void shell.ask(t, { fresh: true }) });
+      out.push({ id: 'ask', group: 'Ask', label: t.endsWith('?') ? t : `${t}`, sub: 'ask your agent', icon: 'spark', hint: shortcut('↵'), run: () => void shell.ask(t, { fresh: true }) });
     }
     if (top) {
       out.push({ id: 'why', group: 'Ask', label: `Why did ${ticker(top)} move today?`, icon: 'spark', run: () => void shell.ask(`Why did ${top} move today?`, { fresh: true }) });
@@ -186,7 +187,7 @@ export function Palette({ initial, onClose, followed, held }: { initial: string;
               </div>
             );
           })}
-          {!items.length && <div className="empty">Nothing matches. ⌘↵ asks your agent.</div>}
+          {!items.length && <div className="empty">Nothing matches. {shortcut('↵')} asks your agent.</div>}
         </div>
         <div className="pfoot">
           <span>
@@ -199,7 +200,7 @@ export function Palette({ initial, onClose, followed, held }: { initial: string;
             <span className="chip m xs">⇥</span> complete
           </span>
           <span>
-            <span className="chip m xs">⌘↵</span> ask
+            <span className="chip m xs">{shortcut('↵')}</span> ask
           </span>
           <span className="spacer" />
           <span>

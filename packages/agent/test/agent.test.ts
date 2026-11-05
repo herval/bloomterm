@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { agentEnv, claude, codex, findAgents, launch, runAgent, SIGN_IN_HINT, signedIn, type AgentEvent, type AgentRunOptions } from '../src/index.ts';
+import { agentEnv, claude, codex, findAgents, installCommands, launch, runAgent, signedIn, signInHint, type AgentEvent, type AgentRunOptions } from '../src/index.ts';
 
 const FAKE = resolve(dirname(fileURLToPath(import.meta.url)), '../../../test/fake-agent.mjs');
 const mcp = { bloomterm: { command: '/x/tsx', args: ['/x/mcp.ts'], env: { BLOOMTERM_HOME: '/h' } } };
@@ -308,7 +308,6 @@ process.exitCode = out.code ?? 0;`;
     expect(await signedIn(await cli('claude', asked, { stdout: '{"loggedIn":true,"email":"me@example.com"}' }))).toBe(true);
     expect(await signedIn(await cli('claude', asked, { stdout: '{"loggedIn":false}', code: 1 }))).toBe(false);
     expect(await signedIn(await cli('claude', asked, { stderr: "error: unknown command 'auth'", code: 1 }))).toBeNull();
-    expect(SIGN_IN_HINT.claude).toBe('claude auth login');
   });
 
   it('asks Codex', async () => {
@@ -316,5 +315,23 @@ process.exitCode = out.code ?? 0;`;
     expect(await signedIn(await cli('codex', asked, { stdout: 'Logged in using ChatGPT' }))).toBe(true);
     expect(await signedIn(await cli('codex', asked, { stdout: 'Not logged in', code: 1 }))).toBe(false);
     expect(await signedIn(await cli('codex', asked, { stderr: "unrecognized subcommand 'status'", code: 2 }))).toBeNull();
+  });
+
+  it('says how to sign in', () => {
+    const agent = (kind: 'claude' | 'codex', path: string) => ({ kind, path, version: '1.0' });
+    expect(signInHint(agent('claude', '/opt/homebrew/bin/claude'), 'darwin')).toBe('claude auth login');
+    expect(signInHint(agent('codex', '/opt/homebrew/bin/codex'), 'darwin')).toBe('codex login');
+    // Windows: the whole path, because a window from before the install has no `claude`, and a
+    // stock PowerShell refuses npm's codex.ps1.
+    expect(signInHint(agent('claude', String.raw`C:\Users\a friend\.local\bin\claude.exe`), 'win32')).toBe(String.raw`& "C:\Users\a friend\.local\bin\claude.exe" auth login`);
+    expect(signInHint(agent('codex', String.raw`C:\Users\me\AppData\Roaming\npm\codex.cmd`), 'win32')).toBe(String.raw`& "C:\Users\me\AppData\Roaming\npm\codex.cmd" login`);
+  });
+
+  it('says how to install, without Node or && on Windows', () => {
+    for (const command of Object.values(installCommands('win32'))) {
+      expect(command).toMatch(/^(irm|powershell) .*install\.ps1/);
+      expect(command).not.toMatch(/npm|&&/);
+    }
+    expect(installCommands('darwin').claude).toBe('npm i -g @anthropic-ai/claude-code && claude');
   });
 });

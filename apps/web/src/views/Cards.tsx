@@ -3,6 +3,7 @@ import { api, download } from '../api.ts';
 import { useApi } from '../data.ts';
 import { age, money } from '../format.ts';
 import { Icon } from '../icons.tsx';
+import { vault } from '../platform.ts';
 import { Link } from '../router.tsx';
 import { useShell } from '../shell.ts';
 import type { Chat } from './Ask.tsx';
@@ -183,7 +184,7 @@ function ConnectCard({ a }: { a: ChatAction }) {
           <span className="chip xs">API key</span>
         </div>
         <div className="small">
-          {d.name} connects with an API key, not a sign-in. Paste it in <Link to="/settings">Settings</Link>; it goes to your Keychain.
+          {d.name} connects with an API key, not a sign-in. Paste it in <Link to="/settings">Settings</Link>; it goes to your {vault}.
         </div>
       </div>
     );

@@ -1,5 +1,6 @@
 import type { MutableRefObject } from 'react';
 import type { PanelState, View } from './layout.ts';
+import { systemName, vault } from './platform.ts';
 
 // The UI's function catalog (SPEC §5): one entry per mnemonic. Views live in views/.
 
@@ -111,7 +112,7 @@ export const FUNCTIONS: FnDef[] = [
     title: 'Settings',
     scope: 'global',
     usage: 'SET',
-    help: 'API keys (stored in your macOS Keychain) and what bloomd is running.',
+    help: `API keys (stored in your ${systemName} ${vault}) and what bloomd is running.`,
     phase: 'P0',
   },
   {

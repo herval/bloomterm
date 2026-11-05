@@ -5,11 +5,12 @@ import { reloadSetup, useSetup, type SetupState } from '../data.ts';
 import { useDaemon } from '../feeds.ts';
 import { age } from '../format.ts';
 import { Icon } from '../icons.tsx';
+import { isWindows, shellApp, thisComputer } from '../platform.ts';
 import { Link } from '../router.tsx';
 import { useShell } from '../shell.ts';
 import { Card, PageHead } from '../ui.tsx';
 
-// Setup (SPEC §8.8): what bloomterm needs on this Mac, from bloomd's check (apps/daemon/src/setup.ts).
+// Setup (SPEC §8.8): what bloomterm needs on this computer, from bloomd's check (apps/daemon/src/setup.ts).
 // The first visit comes here while something's missing, and the top bar links here until it's done.
 
 const NAMES = { claude: 'Claude Code', codex: 'Codex' } as const;
@@ -46,11 +47,11 @@ export default function Setup() {
     }
   };
 
-  if (!setup) return <PageHead title="Setup" sub="checking this Mac…" />;
+  if (!setup) return <PageHead title="Setup" sub={`checking ${thisComputer}…`} />;
   const supervised = !!status?.supervised;
   return (
     <div className="setup">
-      <PageHead title="Setup" sub="what bloomterm needs on this Mac" />
+      <PageHead title="Setup" sub={`what bloomterm needs on ${thisComputer}`} />
       <Card>
         <ol className="setupsteps">
           <AgentStep a={setup.agent} supervised={supervised} restarting={restarting} />
@@ -83,7 +84,7 @@ function AgentStep({ a, supervised, restarting }: { a: SetupState['agent']; supe
   if (a.inUse && a.signedIn === false) {
     return (
       <Step n={1} title={`Sign in to ${name}`}>
-        <p>{name} is installed, but signed out. In Terminal, run this and sign in, then check again:</p>
+        <p>{name} is installed, but signed out. In {shellApp}, run this and sign in, then check again:</p>
         <Command text={a.signIn ?? ''} />
         {what}
       </Step>
@@ -112,7 +113,7 @@ function AgentStep({ a, supervised, restarting }: { a: SetupState['agent']; supe
         )}
         {a.signedIn === false && (
           <>
-            <p>It’s signed out, too. In Terminal:</p>
+            <p>It’s signed out, too. In {shellApp}:</p>
             <Command text={a.signIn ?? ''} />
           </>
         )}
@@ -122,18 +123,22 @@ function AgentStep({ a, supervised, restarting }: { a: SetupState['agent']; supe
   const other = a.wanted !== 'auto' && a.installed.length > 0;
   return (
     <Step n={1} title="Install Claude Code or Codex">
-      <p>bloomterm’s AI is your own coding agent. Install one in Terminal, then sign in to it:</p>
+      <p>bloomterm’s AI is your own coding agent. {isWindows ? 'Install one in PowerShell, from the Start menu:' : 'Install one in Terminal, then sign in to it:'}</p>
       <div className="mut small">Claude Code</div>
-      <Command text="npm i -g @anthropic-ai/claude-code && claude" />
+      <Command text={a.install.claude} />
       <div className="mut small">or Codex</div>
-      <Command text="npm i -g @openai/codex && codex login" />
-      <p className="mut">
-        npm comes with Node.js, from{' '}
-        <a href="https://nodejs.org/" target="_blank" rel="noreferrer">
-          nodejs.org
-        </a>
-        . Then check again here.
-      </p>
+      <Command text={a.install.codex} />
+      {isWindows ? (
+        <p className="mut">Then check again here, and this page shows how to sign in.</p>
+      ) : (
+        <p className="mut">
+          npm comes with Node.js, from{' '}
+          <a href="https://nodejs.org/" target="_blank" rel="noreferrer">
+            nodejs.org
+          </a>
+          . Then check again here.
+        </p>
+      )}
       {other && (
         <p>
           config.toml asks for <code>{a.wanted}</code> (<code>[agent] cli</code>), and only {a.installed.map((i) => NAMES[i.kind]).join(' and ')} is installed.
@@ -192,12 +197,12 @@ function Step({ n, ok = false, title, children }: { n: number; ok?: boolean; tit
   );
 }
 
-/** A command to run in Terminal, with a Copy button. */
+/** A command to run, with a Copy button. */
 function Command({ text }: { text: string }) {
   const shell = useShell();
   const copy = () =>
     void navigator.clipboard?.writeText(text).then(
-      () => shell.toast('Copied. Paste it in Terminal.'),
+      () => shell.toast(`Copied. Paste it in ${shellApp}.`),
       () => shell.toast('Couldn’t copy; select the command instead.', 'error'),
     );
   return (

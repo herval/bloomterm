@@ -11,6 +11,8 @@ import { serveMcp } from './mcp.ts';
 
 // `bt`: a thin client of bloomd (SPEC §8.1). Only bloomd opens the browser profiles.
 
+const QUIT_CHROME = process.platform === 'win32' ? 'close it' : 'quit it (⌘Q)';
+
 const HELP = `bt — bloomterm
 
   bt daemon                       run bloomd in the foreground
@@ -39,7 +41,7 @@ const HELP = `bt — bloomterm
   bt positions [--source s] [--json]
   bt balances [--source s] [--json]
 
-  bt profile open <name> [url]    open a profile in plain Chrome to browse or sign in by hand; quit it (⌘Q) when done
+  bt profile open <name> [url]    open a profile in plain Chrome to browse or sign in by hand; ${QUIT_CHROME} when done
   bt profile wipe <name> --yes    delete a profile (signs you out of everything in it)
   bt record <profile> [url]       like "profile open", but records a HAR for writing an adapter
   bt doctor                       launch each profile, park its window, report
@@ -317,7 +319,7 @@ async function main(argv: string[]): Promise<number> {
       const [sub, name, url] = args;
       if (sub === 'open') {
         await c.call('POST', `/api/profiles/${need(name, 'bt profile open <name> [url]')}/open`, { url });
-        console.log(`Opened profile "${name}" in Chrome. Quit it (⌘Q) when you're done; jobs on it wait until then.`);
+        console.log(`Opened profile "${name}" in Chrome. When you're done, ${QUIT_CHROME}; jobs on it wait until then.`);
         return 0;
       }
       if (sub === 'wipe') {

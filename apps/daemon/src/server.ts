@@ -208,7 +208,7 @@ export function buildServer(daemon: Daemon, token: string, webRoot?: string): Fa
   app.get<{ Params: { id: string } }>('/api/integrations/:id/diff', async (req) => daemon.integrationDiff(IntegrationId.parse(req.params.id), DiffQuery.parse(req.query).run));
   app.post<{ Params: { id: string } }>('/api/integrations/:id/approve', async (req) => daemon.approveIntegration(IntegrationId.parse(req.params.id), ApproveBody.parse(req.body ?? {})));
   app.delete<{ Params: { id: string } }>('/api/integrations/:id', async (req) => daemon.removeIntegration(IntegrationId.parse(req.params.id)));
-  // Setup: what bloomterm needs on this Mac (setup.ts). Checking again restarts bloomd when an
+  // Setup: what bloomterm needs on this computer (setup.ts). Checking again restarts bloomd when an
   // agent CLI was installed since it started.
   app.get('/api/setup', async () => daemon.setup.get());
   app.post('/api/setup/check', async () => daemon.checkSetup());

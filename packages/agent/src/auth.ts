@@ -31,8 +31,13 @@ export async function signedIn(cli: AgentCli): Promise<boolean | null> {
   }
 }
 
-/** How to sign in, for the setup page and errors. */
-export const SIGN_IN_HINT: Record<AgentCli['kind'], string> = {
-  claude: 'claude auth login',
-  codex: 'codex login',
-};
+const SIGN_IN_ARGS: Record<AgentCli['kind'], string> = { claude: 'auth login', codex: 'login' };
+
+/**
+ * How to sign in, for the setup page. On Windows it's the CLI's whole path, for PowerShell: a window
+ * opened before the install doesn't have it on PATH, and a stock PowerShell refuses npm's `.ps1`
+ * launcher, the one a plain `codex` would run.
+ */
+export function signInHint({ kind, path }: AgentCli, platform: NodeJS.Platform = process.platform): string {
+  return platform === 'win32' ? `& "${path}" ${SIGN_IN_ARGS[kind]}` : `${kind} ${SIGN_IN_ARGS[kind]}`;
+}

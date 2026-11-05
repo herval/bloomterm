@@ -1,9 +1,10 @@
 import { FN, FUNCTIONS, type ViewProps } from '../functions.ts';
+import { shortcut } from '../platform.ts';
 
 const KEYS: Array<[string, string]> = [
-  ['⌘K / Ctrl+K', 'search tickers, company names, pages and actions; mnemonics work there too'],
-  ['⌘↵ in ⌘K', 'ask your agent what you typed'],
-  ['⌘J / Ctrl+J', 'open or close Ask beside the page'],
+  [shortcut('K'), 'search tickers, company names, pages and actions; mnemonics work there too'],
+  [`${shortcut('↵')} in ${shortcut('K')}`, 'ask your agent what you typed'],
+  [shortcut('J'), 'open or close Ask beside the page'],
   ['any letter, /', 'on a page: search; in the terminal: type a command'],
   ['Enter', 'GO'],
   ['a question, Enter', 'ASK answers it (start with ? to force a question)'],

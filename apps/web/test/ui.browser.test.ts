@@ -84,6 +84,13 @@ function fakeMac(agents: (typeof FAKE_AGENT)[]) {
 }
 const setupMac = fakeMac([FAKE_AGENT]);
 
+/** A browser that says it's on a Mac or Windows, whichever machine runs this, and sizes the page. */
+async function contextOn(platform: 'MacIntel' | 'Win32') {
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  await context.addInitScript((p) => Object.defineProperty(navigator, 'platform', { value: p }), platform);
+  return context;
+}
+
 const panel = (n: number) => page.locator(`[data-panel="${n}"]`);
 async function command(text: string) {
   await page.keyboard.type(text);
@@ -576,7 +583,7 @@ describe('in the desktop app', () => {
   // apps/desktop sets this before the page loads.
   let desk: Page;
   beforeAll(async () => {
-    const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+    const context = await contextOn('MacIntel');
     await context.addInitScript(() => ((window as any).__BLOOMTERM_DESKTOP__ = true));
     desk = await context.newPage();
   });
@@ -621,7 +628,7 @@ describe('setup', () => {
   const restart = vi.fn();
   const step = (p: Page, n: number) => p.locator('.setupstep').nth(n);
   const chip = (p: Page) => p.locator('.topbar').getByRole('link', { name: 'Finish setup' });
-  const freshPage = async () => (await browser.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
+  const freshPage = async (platform: 'MacIntel' | 'Win32' = 'MacIntel') => (await contextOn(platform)).newPage();
   const signInTo = async (p: Page, d: Daemon, t: string) => {
     const res = await fetch(`http://127.0.0.1:${d.port}/api/ui/code`, { method: 'POST', headers: { authorization: `Bearer ${t}` } });
     const { code } = (await res.json()) as { code: string };
@@ -663,7 +670,7 @@ describe('setup', () => {
     await fresh.locator('.phead h1', { hasText: 'Setup' }).waitFor();
     expect(fresh.url()).toMatch(/\/setup$/);
     expect(await step(fresh, 0).locator('.steptitle').textContent()).toBe('Install Claude Code or Codex');
-    expect(await step(fresh, 0).textContent()).toContain('npm i -g @anthropic-ai/claude-code && claude');
+    expect(await step(fresh, 0).textContent()).toContain(process.platform === 'win32' ? 'irm https://claude.ai/install.ps1 | iex' : 'npm i -g @anthropic-ai/claude-code && claude');
     expect(await step(fresh, 1).locator('.steptitle').textContent()).toBe('Install Google Chrome');
     expect(await step(fresh, 1).getByRole('link', { name: /Get Chrome/ }).getAttribute('href')).toBe('https://www.google.com/chrome/');
     await chip(fresh).waitFor();
@@ -697,7 +704,7 @@ describe('setup', () => {
       await signInTo(p, daemon, token);
       await p.locator('.phead h1', { hasText: 'Setup' }).waitFor();
       expect(await step(p, 0).locator('.steptitle').textContent()).toBe('Sign in to Claude Code');
-      expect(await step(p, 0).locator('.shellcmd code').textContent()).toBe('claude auth login');
+      expect(await step(p, 0).locator('.shellcmd code').textContent()).toContain('auth login');
       await chip(p).waitFor();
 
       setupMac.mac.signedIn = true;
@@ -735,5 +742,34 @@ describe('setup', () => {
     });
     expect(past).toEqual([]);
     expect(await fresh.locator('.shellcmd code').first().evaluate((e) => getComputedStyle(e).textTransform)).toBe('none');
+  });
+
+  it('talks like Windows on Windows', async () => {
+    bareMac.mac.agents = [];
+    bareMac.mac.chrome = null;
+    await fetch(`http://127.0.0.1:${bare.port}/api/setup/check`, { method: 'POST', headers: { authorization: `Bearer ${bareToken}` } });
+    const p = await freshPage('Win32');
+    try {
+      await signInTo(p, bare, bareToken);
+      await p.locator('.phead h1', { hasText: 'Setup' }).waitFor();
+      expect(await p.locator('.phead').textContent()).toContain('what bloomterm needs on this PC');
+      expect(await step(p, 0).textContent()).toContain('Install one in PowerShell, from the Start menu:');
+      expect(await p.locator('.searchbox kbd').textContent()).toBe('Ctrl+K');
+
+      await p.keyboard.press('Control+k');
+      await expect.poll(() => p.locator('body').innerText()).toContain('Ctrl+↵');
+      await p.keyboard.press('Escape');
+
+      for (const path of ['setup', 'settings', 'help']) {
+        await p.goto(`http://127.0.0.1:${bare.port}/${path}`);
+        await p.locator('.phead h1').waitFor();
+        expect(await p.locator('body').innerText()).not.toMatch(/⌘|this Mac|Keychain|macOS|menu bar|in Terminal/i);
+      }
+      await p.goto(`http://127.0.0.1:${bare.port}/settings`);
+      await expect.poll(() => p.locator('.settings').innerText()).toContain('close it');
+      expect(await p.locator('.phead').textContent()).toContain('API keys live in your Windows Credential Manager');
+    } finally {
+      await p.context().close();
+    }
   });
 });

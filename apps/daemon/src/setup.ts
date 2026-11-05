@@ -1,8 +1,8 @@
-import { findAgents, pickAgent, SIGN_IN_HINT, signedIn, type AgentCli } from '@bloomterm/agent';
+import { findAgents, installCommands, pickAgent, signedIn, signInHint, type AgentCli } from '@bloomterm/agent';
 import { findChrome, type ChromeLocation, type Logger } from '@bloomterm/browser';
 import type { Config } from './config.ts';
 
-// Setup (SPEC §8.8): what bloomterm needs on this Mac, which bloomd checks when it starts and
+// Setup (SPEC §8.8): what bloomterm needs on this computer, which bloomd checks when it starts and
 // again when you ask, and the web app's Setup page shows until it's all there.
 //   - your agent CLI (Claude Code or Codex), installed and signed in: Ask, the brief, news and
 //     EVOLVE run on it. bloomd starts without one, so the page can say so; when one is installed
@@ -39,6 +39,8 @@ export interface SetupState {
     signedIn: boolean | null;
     /** What to run to sign in. */
     signIn: string | null;
+    /** What to run to install each agent here. */
+    install: ReturnType<typeof installCommands>;
     /** The one bloomd is running with: none when it started before one was installed. */
     inUse: Agent | null;
     /** An agent is installed now, and bloomd has to restart to use it. */
@@ -93,7 +95,8 @@ export class Setup {
         installed: installed.map(({ kind, version }) => ({ kind, version })),
         found: agent && { kind: agent.kind, version: agent.version, path: agent.path },
         signedIn,
-        signIn: agent ? SIGN_IN_HINT[agent.kind] : null,
+        signIn: agent && signInHint(agent),
+        install: installCommands(),
         inUse: inUse && { kind: inUse.kind, version: inUse.version },
         restartNeeded,
       },

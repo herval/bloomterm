@@ -1009,8 +1009,12 @@ System Events which app is in front, to give focus back after a sign-in window.
 WebKit and `%LOCALAPPDATA%\bloomterm` as its folder. An installer run over the running app, or the
 uninstaller, closes it through Windows' Restart Manager, and that stops its bloomd as Quit does.
 GitHub builds the installer on each change to the app (`windows-app.yml`), and
-`scripts/windows-smoke.ps1` installs and uses it there, and updates it to a newer version, with an
-updater key made for that run.
+`scripts/windows-smoke.ps1` installs and uses it there, updates it to a newer version with an
+updater key made for that run, and goes through Setup with the real agents, signed out.
+
+The web app says what's right for the machine it's on: this PC, Ctrl+K, PowerShell, Credential
+Manager (`apps/web/src/platform.ts`). It goes by `navigator.platform`: bloomd only listens on
+127.0.0.1, so the browser is on bloomd's machine.
 
 **Releases, for other computers** (`make release`, `scripts/release.sh`). Apple silicon Macs and
 64-bit Windows; Intel Macs wait until someone asks.
@@ -1049,7 +1053,7 @@ view, with a block for what changes in the app. The shell's own logic has Rust u
 
 ### 8.8 Setup (first run)
 
-On a friend's Mac, the app has to work before the two things bloomterm doesn't ship are there: an
+On a friend's computer, the app has to work before the two things bloomterm doesn't ship are there: an
 agent CLI (§10.1) and Google Chrome (§6.2). So bloomd **starts without them** and says what's
 missing, instead of failing to start.
 
@@ -1075,8 +1079,10 @@ missing, instead of failing to start.
   - Supervised (the desktop app, or the LaunchAgent): the check restarts bloomd itself.
   - Otherwise: the page says to restart `bt daemon`.
 - **The Setup page** (`/setup`) lists the two steps. Each is done (✓) or shows what to do next:
-  - install commands, each with a Copy button;
-  - the sign-in command;
+  - install commands, each with a Copy button: npm on a Mac, and on Windows each agent's own
+    PowerShell installer, since a new PC has no Node;
+  - the sign-in command. On Windows it names the CLI's whole path: a PowerShell opened before the
+    install doesn't have it on PATH, and a stock one refuses the `.ps1` launcher npm leaves;
   - a Get Chrome link;
   - or, when the config.toml path is wrong, that path.
 

@@ -18,6 +18,7 @@ import Terminal from './pages/Terminal.tsx';
 import Today, { heldKeys } from './pages/Today.tsx';
 import { HelpPage, JobsPage, PortfolioPage, SettingsPage, SourcesPage, viewPath } from './pages/Views.tsx';
 import { Palette } from './Palette.tsx';
+import { shortcut } from './platform.ts';
 import { Link, navigate, useRoute, type Route } from './router.tsx';
 import { ShellContext, terminalRun, type ShellApi } from './shell.ts';
 import { ticker } from './ui.tsx';
@@ -142,7 +143,7 @@ export default function Shell() {
         case 'ask':
           return void ask(c.text, { fresh: true });
         case 'unknown':
-          return toast(`Unknown security or function "${c.text}". Try a ticker (PETR4, AAPL), or ⌘K to search.`, 'error');
+          return toast(`Unknown security or function "${c.text}". Try a ticker (PETR4, AAPL), or ${shortcut('K')} to search.`, 'error');
         case 'go': {
           const fn = c.fn ?? 'OV';
           const security = c.security?.key ?? here;
@@ -330,10 +331,10 @@ function TopBar({ setupDone, onSearch, onAsk }: { setupDone: boolean; onSearch: 
         <span className="mark" aria-hidden="true" />
         bloomterm
       </Link>
-      <button className="searchbox" onClick={onSearch} aria-label="Search or ask (⌘K)">
+      <button className="searchbox" onClick={onSearch} aria-label={`Search or ask (${shortcut('K')})`}>
         <Icon name="search" size={14} />
         <span className="grow">Search tickers, pages, or ask…</span>
-        <kbd>⌘K</kbd>
+        <kbd>{shortcut('K')}</kbd>
       </button>
       <span className="spacer" />
       {!setupDone ? (
@@ -407,7 +408,7 @@ function Sidebar({ route, lists, askOpen, onAsk }: { route: Route; lists: Watchl
       <button className={`nav ${askOpen || route.parts[0] === 'ask' ? 'on' : ''}`} onClick={() => (route.parts[0] === 'ask' ? undefined : onAsk())}>
         <Icon name="spark" size={16} className="amber" />
         <span className="grow">Ask</span>
-        <kbd>⌘J</kbd>
+        <kbd>{shortcut('J')}</kbd>
       </button>
       {item({ to: '/sources', label: 'Sources', icon: 'sources', match: (r) => r.parts[0] === 'sources' }, trouble > 0 ? <span className="badge" title={`${trouble} need attention`}>{trouble}</span> : null)}
       {item({ to: '/jobs', label: 'Jobs', icon: 'jobs', match: (r) => r.parts[0] === 'jobs' })}

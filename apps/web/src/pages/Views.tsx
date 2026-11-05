@@ -7,6 +7,7 @@ import { age } from '../format.ts';
 import type { Nav, ViewProps } from '../functions.ts';
 import { Icon } from '../icons.tsx';
 import type { View } from '../layout.ts';
+import { shortcut, systemName, vault } from '../platform.ts';
 import { navigate, secPath, type Route } from '../router.tsx';
 import { useShell } from '../shell.ts';
 import { Card, PageHead } from '../ui.tsx';
@@ -96,9 +97,9 @@ export function SettingsPage() {
   const { pref, setPref } = useTheme();
   return (
     <div>
-      <PageHead title="Settings" sub="API keys live in your macOS Keychain; bloomterm never shows them again" />
+      <PageHead title="Settings" sub={`API keys live in your ${systemName} ${vault}; bloomterm never shows them again`} />
       <Card title="Appearance" icon="sun" actions={<ThemeSwitch pref={pref} setPref={setPref} />}>
-        <p className="mut small pad">Light is the default. System follows macOS. This browser remembers the choice.</p>
+        <p className="mut small pad">Light is the default. System follows {systemName}. This browser remembers the choice.</p>
       </Card>
       <Card>
         <ViewBody fn="SET" args={[]} View={Settings} />
@@ -122,7 +123,7 @@ function ThemeSwitch({ pref, setPref }: { pref: ThemePref; setPref: (p: ThemePre
 export function HelpPage({ route }: { route: Route }) {
   return (
     <div>
-      <PageHead title="Help" sub="⌘K finds anything; the terminal's mnemonics work there too" />
+      <PageHead title="Help" sub={`${shortcut('K')} finds anything; the terminal's mnemonics work there too`} />
       <Card>
         <ViewBody fn="HELP" args={route.parts.slice(1)} View={Help} />
       </Card>

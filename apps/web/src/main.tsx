@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { desktop, hasToken, signInFromUrl } from './api.ts';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
+import { trayMenu } from './platform.ts';
 import Shell from './Shell.tsx';
 import './styles.css';
 import { initTheme } from './theme.ts';
@@ -18,7 +19,7 @@ function SignedOut({ error }: { error: string | null }) {
       </div>
       {error && <p className="down">{error}</p>}
       {desktop ? (
-        <p>Choose Open bloomterm in the menu bar to sign in again.</p>
+        <p>Choose Open bloomterm in {trayMenu} to sign in again.</p>
       ) : (
         <p>
           Open this page with <code>pnpm bt ui</code>. It signs this browser in with a one-time link.

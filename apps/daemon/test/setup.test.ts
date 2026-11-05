@@ -117,7 +117,7 @@ describe('setup', () => {
     const { call } = await start({ agent: claude, probes, config: { browser: { chrome: '/Volumes/Apps/Chrome.app' } } });
     expect((await call('GET', '/api/setup')).body).toMatchObject({
       ready: false,
-      agent: { inUse: { kind: 'claude' }, signedIn: false, signIn: 'claude auth login', restartNeeded: false },
+      agent: { inUse: { kind: 'claude' }, signedIn: false, signIn: expect.stringContaining('auth login'), restartNeeded: false },
       chrome: { path: null, configured: '/Volumes/Apps/Chrome.app' },
     });
 

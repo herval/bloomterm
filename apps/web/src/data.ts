@@ -153,7 +153,7 @@ export function useSparks(keys: string[]): (key: string) => number[] | undefined
   return sparks.get;
 }
 
-/** GET /api/setup (apps/daemon/src/setup.ts): what bloomterm needs on this Mac. */
+/** GET /api/setup (apps/daemon/src/setup.ts): what bloomterm needs on this computer. */
 export interface SetupState {
   checkedAt: string;
   ready: boolean;
@@ -163,6 +163,7 @@ export interface SetupState {
     found: { kind: 'claude' | 'codex'; version: string; path: string } | null;
     signedIn: boolean | null;
     signIn: string | null;
+    install: Record<'claude' | 'codex', string>;
     inUse: { kind: 'claude' | 'codex'; version: string } | null;
     restartNeeded: boolean;
   };

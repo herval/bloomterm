@@ -3,6 +3,7 @@ import { api, get, signOut } from '../api.ts';
 import { useSetup } from '../data.ts';
 import { useDaemon } from '../feeds.ts';
 import type { ViewProps } from '../functions.ts';
+import { quitChrome, systemName, vault } from '../platform.ts';
 import { Link } from '../router.tsx';
 import { YourIntegrations } from './Review.tsx';
 
@@ -15,7 +16,7 @@ interface Secret {
   from: 'env' | 'keychain' | null;
 }
 
-/** SET: API keys go into the macOS Keychain through bloomd. They're never sent back here. */
+/** SET: API keys go into the Keychain or Credential Manager through bloomd. They're never sent back here. */
 export default function Settings({ nav }: ViewProps) {
   const { status, sources, refresh } = useDaemon();
   const [secrets, setSecrets] = useState<Secret[] | null>(null);
@@ -31,7 +32,7 @@ export default function Settings({ nav }: ViewProps) {
     try {
       await api('PUT', `/api/settings/secrets/${name}`, { value });
       setDrafts((d) => ({ ...d, [name]: '' }));
-      nav.message(`saved ${name} to the Keychain`);
+      nav.message(`saved ${name} to your ${vault}`);
       await load();
     } catch (e) {
       nav.message((e as Error).message, 'error');
@@ -44,7 +45,7 @@ export default function Settings({ nav }: ViewProps) {
     setBusy(name);
     try {
       await api('DELETE', `/api/settings/secrets/${name}`);
-      nav.message(`removed ${name} from the Keychain`);
+      nav.message(`removed ${name} from your ${vault}`);
       await load();
     } catch (e) {
       nav.message((e as Error).message, 'error');
@@ -58,7 +59,7 @@ export default function Settings({ nav }: ViewProps) {
     setBusy(`profile:${name}`);
     try {
       await api('POST', `/api/profiles/${name}/open`, {});
-      nav.message(`opened the ${name} profile in Chrome; quit it (⌘Q) when you're done, and jobs on it go again`);
+      nav.message(`opened the ${name} profile in Chrome; ${quitChrome} when you're done, and jobs on it go again`);
       refresh();
     } catch (e) {
       nav.message((e as Error).message, 'error');
@@ -70,7 +71,7 @@ export default function Settings({ nav }: ViewProps) {
   return (
     <div className="scroll settings">
       <div className="section">API keys</div>
-      <p className="muted">Saved in your macOS Keychain (service “bloomterm”). bloomd reads them when it fetches; this page only sees whether each is set.</p>
+      <p className="muted">Saved in your {systemName} {vault} (service “bloomterm”). bloomd reads them when it fetches; this page only sees whether each is set.</p>
       <table className="grid keys">
         <tbody>
           {secrets?.map((s) => (
@@ -117,9 +118,9 @@ export default function Settings({ nav }: ViewProps) {
       <div className="section">Browser</div>
       <p className="muted">
         The Chrome profiles bloomd signs in and fetches with, separate from your own Chrome. Open one to sign in to a site or look around: it
-        opens as a plain Chrome, which Google and bot checks accept. Jobs on that profile wait until you quit it (⌘Q).
+        opens as a plain Chrome, which Google and bot checks accept. Jobs on that profile wait until you {quitChrome}.
       </p>
-      <ThisMac />
+      <ThisComputer />
       <table className="grid keys">
         <tbody>
           {status?.profiles.map((p: any) => (
@@ -179,7 +180,7 @@ export default function Settings({ nav }: ViewProps) {
 }
 
 /** Which Chrome bloomd uses, and the way back to Setup (which also checks the agent CLI). */
-function ThisMac() {
+function ThisComputer() {
   const setup = useSetup();
   if (!setup) return null;
   const chrome = setup.chrome.path && (/^(.*\.app)\//.exec(setup.chrome.path)?.[1] ?? setup.chrome.path);

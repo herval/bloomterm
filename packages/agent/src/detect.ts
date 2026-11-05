@@ -11,7 +11,7 @@ function knownDirs(): string[] {
   if (process.platform === 'win32') {
     const roaming = process.env.APPDATA ?? join(home, 'AppData/Roaming');
     const local = process.env.LOCALAPPDATA ?? join(home, 'AppData/Local');
-    return [join(home, '.local/bin'), join(roaming, 'npm'), join(local, 'pnpm'), join(local, 'Microsoft/WinGet/Links'), join(home, '.bun/bin')];
+    return [join(home, '.local/bin'), join(roaming, 'npm'), join(local, 'Programs/OpenAI/Codex/bin'), join(local, 'pnpm'), join(local, 'Microsoft/WinGet/Links'), join(home, '.bun/bin')];
   }
   return [join(home, '.local/bin'), join(home, '.claude/local'), '/opt/homebrew/bin', '/usr/local/bin', join(home, '.npm-global/bin'), join(home, '.bun/bin')];
 }
@@ -60,5 +60,15 @@ export function pickAgent(found: AgentCli[], prefer: AgentKind | 'auto' = 'auto'
   return found[0] ?? null;
 }
 
-export const INSTALL_HINT =
-  'bloomterm needs Claude Code or Codex installed and signed in: `npm i -g @anthropic-ai/claude-code` then `claude` (or `npm i -g @openai/codex` then `codex login`).';
+/** What installs each agent here, for the setup page and errors. On Windows, their own installers, for PowerShell: a new PC has no Node. */
+export function installCommands(platform: NodeJS.Platform = process.platform): Record<AgentKind, string> {
+  return platform === 'win32'
+    ? {
+        claude: 'irm https://claude.ai/install.ps1 | iex',
+        codex: 'powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"',
+      }
+    : { claude: 'npm i -g @anthropic-ai/claude-code && claude', codex: 'npm i -g @openai/codex && codex login' };
+}
+
+const { claude, codex } = installCommands();
+export const INSTALL_HINT = `bloomterm needs Claude Code or Codex installed and signed in: \`${claude}\` (or \`${codex}\`).`;
