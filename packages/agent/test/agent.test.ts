@@ -321,8 +321,8 @@ process.exitCode = out.code ?? 0;`;
     const agent = (kind: 'claude' | 'codex', path: string) => ({ kind, path, version: '1.0' });
     expect(signInHint(agent('claude', '/opt/homebrew/bin/claude'), 'darwin')).toBe('claude auth login');
     expect(signInHint(agent('codex', '/opt/homebrew/bin/codex'), 'darwin')).toBe('codex login');
-    // Windows: the whole path, because a window from before the install has no `claude`, and a
-    // stock PowerShell refuses npm's codex.ps1.
+    // Windows: the whole path, because Claude Code's installer leaves it off PATH, and a stock
+    // PowerShell refuses npm's codex.ps1.
     expect(signInHint(agent('claude', String.raw`C:\Users\a friend\.local\bin\claude.exe`), 'win32')).toBe(String.raw`& "C:\Users\a friend\.local\bin\claude.exe" auth login`);
     expect(signInHint(agent('codex', String.raw`C:\Users\me\AppData\Roaming\npm\codex.cmd`), 'win32')).toBe(String.raw`& "C:\Users\me\AppData\Roaming\npm\codex.cmd" login`);
   });

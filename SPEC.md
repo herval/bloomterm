@@ -1081,8 +1081,9 @@ missing, instead of failing to start.
 - **The Setup page** (`/setup`) lists the two steps. Each is done (✓) or shows what to do next:
   - install commands, each with a Copy button: npm on a Mac, and on Windows each agent's own
     PowerShell installer, since a new PC has no Node;
-  - the sign-in command. On Windows it names the CLI's whole path: a PowerShell opened before the
-    install doesn't have it on PATH, and a stock one refuses the `.ps1` launcher npm leaves;
+  - the sign-in command. On Windows it names the CLI's whole path: Claude Code's installer leaves
+    it off PATH, a PowerShell opened before Codex's install doesn't have it, and a stock one
+    refuses the `.ps1` launcher npm leaves;
   - a Get Chrome link;
   - or, when the config.toml path is wrong, that path.
 
