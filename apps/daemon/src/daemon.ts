@@ -21,7 +21,7 @@ import { enrichPrompt, NEWS_SYSTEM, parseEnrich } from './news/enrich.ts';
 import { NewsService } from './news/service.ts';
 import { memoryStore, type SecretStore } from './market/secrets.ts';
 import { MarketService } from './market/service.ts';
-import { macNotifier } from './notify.ts';
+import { desktopNotifier } from './notify.ts';
 import { JobRunner } from './runner.ts';
 import { PRIORITY, Scheduler, validateSchedule, type ScheduleEntry } from './scheduler.ts';
 import { buildServer, HttpError } from './server.ts';
@@ -38,6 +38,8 @@ export interface DaemonOptions {
   local?: LocalIntegrations;
   /** Restarts bloomd, when something supervises it (launchd, the desktop app); without one, POST /api/restart answers 409. */
   restart?: () => void;
+  /** Stops bloomd cleanly. Without it, POST /api/shutdown answers 409. */
+  shutdown?: () => void;
   config?: Config;
   host?: Partial<HostOptions>;
   notify?: boolean;
@@ -104,7 +106,7 @@ export class Daemon {
   private scheduler!: Scheduler;
   private startedAt = '';
   private listeners = new Set<(ev: DaemonEvent) => void>();
-  private notify = macNotifier();
+  private notify = desktopNotifier();
   private uiCodes = new Map<string, number>();
 
   constructor(private readonly opts: DaemonOptions) {
@@ -443,6 +445,13 @@ export class Daemon {
   }
 
   /** Restarts bloomd, if launchd or the desktop app will start it again. */
+  shutdown(): { stopping: true } {
+    const shutdown = this.opts.shutdown;
+    if (!shutdown) throw new HttpError(409, "this bloomd can't stop itself");
+    setTimeout(shutdown, 100);
+    return { stopping: true };
+  }
+
   restart(): { restarting: true } {
     const restart = this.opts.restart;
     if (!restart) throw new HttpError(409, "bloomd runs in a terminal here, so it can't restart itself; stop it and start it again");
@@ -592,7 +601,7 @@ export class Daemon {
 
   private onHostEvent(ev: HostEvent): void {
     this.emit(ev);
-    if (ev.type === 'attention' && ev.reason !== 'sign_in_open' && (this.opts.notify ?? this.config.notify.macos)) {
+    if (ev.type === 'attention' && ev.reason !== 'sign_in_open' && (this.opts.notify ?? this.config.notify[process.platform === 'win32' ? 'windows' : 'macos'])) {
       this.notify(`${ev.source}:${ev.reason}`, 'bloomterm', ev.message);
     }
     if (ev.type === 'session' && ev.record.state === 'ok') {

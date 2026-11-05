@@ -50,6 +50,7 @@ export async function runDaemon(opts: { port?: number } = {}): Promise<void> {
     agent,
     log,
     restart: supervised ? () => void stop('restart', RESTART_EXIT) : undefined,
+    shutdown: () => void stop('shutdown', 0),
   });
   await daemon.start();
   process.on('SIGINT', () => void stop('SIGINT', 0));

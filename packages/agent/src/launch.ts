@@ -28,6 +28,9 @@ export function shimTarget(shim: string): string {
 }
 
 /** Runs a CLI once. Hidden: a console program started from the desktop app would open a window of its own. */
+/** Windows' own programs by their full path: an agent's PATH can hold anything. */
+export const system32 = (...path: string[]) => join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', ...path);
+
 export async function runCli(path: string, args: string[], opts: ExecFileOptions = {}): Promise<{ stdout: string; stderr: string }> {
   const l = launch(path, args);
   return exec(l.file, l.args, { ...opts, windowsHide: true, encoding: 'utf8' });
@@ -43,6 +46,5 @@ export function stopCli(child: ChildProcess): void {
     setTimeout(() => child.exitCode === null && child.kill('SIGKILL'), 3_000).unref();
     return;
   }
-  const taskkill = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe');
-  spawn(taskkill, ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', () => child.kill());
+  spawn(system32('taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', () => child.kill());
 }

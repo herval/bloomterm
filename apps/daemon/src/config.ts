@@ -11,6 +11,7 @@ import { z } from 'zod';
 //
 //   [notify]
 //   macos = true
+//   windows = true
 //
 //   [profiles.finance]
 //   mode = "parked"            # or "headless"
@@ -50,7 +51,7 @@ export const Config = z
         concurrency: z.number().int().min(1).max(16).default(4),
       })
       .prefault({}),
-    notify: z.object({ macos: z.boolean().default(true) }).prefault({}),
+    notify: z.object({ macos: z.boolean().default(true), windows: z.boolean().default(true) }).prefault({}),
     agent: z
       .object({
         cli: z.enum(['auto', 'claude', 'codex']).default('auto'),

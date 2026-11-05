@@ -216,6 +216,11 @@ export function buildServer(daemon: Daemon, token: string, webRoot?: string): Fa
     reply.code(202);
     return daemon.restart();
   });
+  // How the desktop app stops bloomd on Windows, where a signal can only kill it outright.
+  app.post('/api/shutdown', async (_req, reply) => {
+    reply.code(202);
+    return daemon.shutdown();
+  });
   app.get('/api/settings/secrets', async () => daemon.secretStatus());
   app.put<{ Params: { name: string } }>('/api/settings/secrets/:name', async (req) => {
     const name = secretName(req.params.name);

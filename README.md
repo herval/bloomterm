@@ -356,6 +356,7 @@ concurrency = 4
 
 [notify]
 macos = true
+windows = true
 
 [agent]
 cli = "auto"               # or "claude" / "codex"

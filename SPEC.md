@@ -922,7 +922,7 @@ defineFunction({
 | UI | React + Vite, TanStack Table + virtualization | Dense tables, fast |
 | Charts | TradingView Lightweight Charts (Apache-2.0) for price; uPlot for macro/curves | Purpose-built, small |
 | AI | Your Claude Code or Codex CLI, headless (`@bloomterm/agent`) | ASK and EVOLVE now; BRIEF, extraction and tagging later. Runs on your plan, with no API keys |
-| Notifications | macOS notifications; optional ntfy / Pushover / Telegram | Phone alerts |
+| Notifications | macOS notifications or Windows toasts; optional ntfy / Pushover / Telegram | Phone alerts |
 
 ### 8.6 Repo layout
 
@@ -1097,7 +1097,7 @@ missing, instead of failing to start.
 | Channel | When |
 |---|---|
 | In-terminal alert panel and status bar, with optional sound | Always |
-| macOS notification | Default on |
+| macOS notification, or a Windows toast | Default on |
 | ntfy / Pushover / Telegram push | Opt-in per rule severity |
 | Daily digest folded into `BRIEF` | Optional |
 
@@ -1304,7 +1304,9 @@ most CDBs, LCIs, and LCAs) are stored with `raw_symbol` and counted in `PORT` to
   - CORS is limited to bloomd's own origin.
   - Remote/phone access (e.g. via Tailscale with an auth proxy) comes in P2.
 - **Browser profiles are credentials.** Their directories are `0700`. FileVault is recommended. They are
-  excluded from any sync tool. `bt profile wipe <name>` signs you out of everything in a profile.
+  excluded from any sync tool. Windows ignores those modes: `~/.bloomterm` is private there because
+  your user folder lets in only you, the system and administrators, so a `BLOOMTERM_HOME` outside it
+  isn't. `bt profile wipe <name>` signs you out of everything in a profile.
 - **API keys** are kept in the Keychain or Credential Manager and never in config or logs. `SET` writes
   them through bloomd (on a Mac with `security -i`, on Windows with a native call, so the value never
   shows in the process list); the API only reports whether each key is set, never its value.

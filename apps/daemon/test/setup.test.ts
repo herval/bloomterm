@@ -25,7 +25,7 @@ function fakeMac() {
 
 const daemons: { daemon: Daemon; home: string }[] = [];
 
-async function start(o: { agent?: AgentCli | null; probes: SetupProbes; restart?: () => void; config?: object }) {
+async function start(o: { agent?: AgentCli | null; probes: SetupProbes; restart?: () => void; shutdown?: () => void; config?: object }) {
   const home = await mkdtemp(join(tmpdir(), 'bt-setup-'));
   const daemon = new Daemon({
     home,
@@ -37,6 +37,7 @@ async function start(o: { agent?: AgentCli | null; probes: SetupProbes; restart?
     agent: o.agent ?? null,
     setup: o.probes,
     restart: o.restart,
+    shutdown: o.shutdown,
     notify: false,
     newsTickMs: 0,
     briefTickMs: 0,
@@ -88,6 +89,17 @@ describe('setup', () => {
     const { body } = await call('POST', '/api/setup/check');
     expect(body).toMatchObject({ ready: false, restarting: true, agent: { found: { kind: 'claude', path: '/fake/claude' }, inUse: null, restartNeeded: true, signIn: 'claude auth login' } });
     await vi.waitFor(() => expect(restart).toHaveBeenCalledOnce());
+  });
+
+  it('stops when the desktop app asks, with the token', async () => {
+    const { probes } = fakeMac();
+    const shutdown = vi.fn();
+    const { call, daemon } = await start({ probes, shutdown });
+    const port = daemon.port;
+    expect((await fetch(`http://127.0.0.1:${port}/api/shutdown`, { method: 'POST' })).status).toBe(401);
+    expect(shutdown).not.toHaveBeenCalled();
+    expect((await call('POST', '/api/shutdown')).status).toBe(202);
+    await vi.waitFor(() => expect(shutdown).toHaveBeenCalledOnce());
   });
 
   it('says to restart bloomd by hand when it runs in a terminal', async () => {

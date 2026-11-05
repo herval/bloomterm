@@ -1,8 +1,8 @@
 #!/usr/bin/env -S npx tsx
 import { execFile } from 'node:child_process';
-import { basename, join, resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { findAgents } from '@bloomterm/agent';
+import { findAgents, system32 } from '@bloomterm/agent';
 import { bloomtermHome } from '@bloomterm/core';
 import { checkIntegration, checksLine, runDaemon, testIntegration } from '@bloomterm/daemon';
 import { Client } from './client.ts';
@@ -410,7 +410,7 @@ function runState(m: any): string {
 /** In your default browser. Through rundll32 on Windows: `start` would need cmd.exe. */
 function openLink(url: string): void {
   if (process.platform !== 'win32') execFile('open', [url]);
-  else execFile(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'rundll32.exe'), ['url.dll,FileProtocolHandler', url], { windowsHide: true });
+  else execFile(system32('rundll32.exe'), ['url.dll,FileProtocolHandler', url], { windowsHide: true });
 }
 
 function localState(l: any): string {
