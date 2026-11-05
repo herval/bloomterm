@@ -1,6 +1,6 @@
 # bloomterm
 
-A personal, keyboard-first market terminal for your Mac, built AI-first. It brings together
+A personal, keyboard-first market terminal for your Mac or PC, built AI-first. It brings together
 quotes, charts, news and filings for US and Brazilian (B3) markets, plus your own positions across
 your accounts. It runs on your machine, and your data stays there. It runs your own Claude Code or
 Codex for:
@@ -18,8 +18,8 @@ Codex for:
 
 [SPEC.md](SPEC.md) has the design: what it does, and why.
 
-> **Status: early, and built for one person's use.** It runs on Apple silicon Macs only. Working
-> now: the browser data layer, the daemon (bloomd) with its SQLite store, market data from free
+> **Status: early, and built for one person's use.** It runs on Apple silicon Macs, and on 64-bit
+> Windows, which is newer and has had far less use. Working now: the browser data layer, the daemon (bloomd) with its SQLite store, market data from free
 > sources, news (RSS, CVM, SEC EDGAR, Alpaca), the web app, Ask, the brief and EVOLVE. No browser
 > integration fetches real data yet: B3 is a draft, waiting for `EVOLVE b3`. Expect rough edges
 > and breaking changes.
@@ -40,15 +40,27 @@ Codex for:
 ## Install
 
 You need:
-- A Mac with Apple silicon (M1 or later), on macOS 13 or later.
+- A Mac with Apple silicon (M1 or later), on macOS 13 or later, or a 64-bit PC on Windows 10 or 11.
 - Google Chrome.
 - **Claude Code or Codex**, installed and signed in. bloomterm runs it on your own plan, so there
   are no model API keys:
   `npm i -g @anthropic-ai/claude-code && claude` (or `npm i -g @openai/codex && codex login`).
+  On Windows, the app's Setup page has PowerShell commands for these that don't need Node.
 
-**The app.** Download [bloomterm.dmg](https://github.com/herval/bloomterm/releases/latest/download/bloomterm.dmg),
+**On a Mac.** Download [bloomterm.dmg](https://github.com/herval/bloomterm/releases/latest/download/bloomterm.dmg),
 open it and drag bloomterm to Applications. It's signed and notarized, and updates itself from the
 menu bar. The first time, Setup checks for Chrome and an agent CLI and says what's missing.
+
+**On Windows.** Download [bloomterm-setup.exe](https://github.com/herval/bloomterm/releases/latest/download/bloomterm-setup.exe)
+and open it. Builds aren't code signed yet, so your browser may warn you about the download, and
+Windows says "Windows protected your PC" when you open it: choose **More info**, then **Run
+anyway**. To check the file first, compare `Get-FileHash bloomterm-setup.exe` with the SHA-256 in
+the release notes. It installs for you alone, without asking for admin rights, and updates itself
+from the tray. The first time, Setup checks for Chrome and an agent CLI, and gives you the commands
+to paste in PowerShell.
+
+If Smart App Control is on, Windows blocks the installer and doesn't offer Run anyway. That stays
+true until builds are signed.
 
 **From source.** You also need Node 22+ and pnpm (`corepack enable pnpm`):
 
@@ -66,7 +78,7 @@ make run                # builds the web app, starts bloomd, opens the UI signed
 apps/daemon         bloomd: localhost API + WebSocket, job runner, scheduler, market data, notifications
 apps/web            the web app (React + Vite), served by bloomd
 apps/cli            bt: a thin client of bloomd (plus `bt daemon`, `bt ui` and `bt mcp`)
-apps/desktop        bloomterm.app (Tauri): runs bloomd, shows the web app, lives in the menu bar
+apps/desktop        the desktop app (Tauri): runs bloomd, shows the web app, lives in the menu bar or tray
 packages/store      SQLite: sessions, job queue, schedules, holdings with provenance, chats, news, insights
 packages/browser    browser host: profiles, parked Chrome, sessions, guards, adapter SDK
 packages/integrations  every data source, one folder each (alpaca, brapi, coinbase, bcb, rss, cvm,
@@ -151,15 +163,26 @@ make app-install    # the same, then copies it to /Applications
   `~/.bloomterm/integrations`, never in the app.
 - `bt` comes with it: `ln -s /Applications/bloomterm.app/Contents/Resources/bundle/bt ~/.local/bin/bt`.
 
+On Windows it's the same app, with these differences:
+
+- **It's yours alone**: it installs in `%LOCALAPPDATA%\bloomterm`, with an entry in the Start menu.
+  Uninstalling it from Settings → Apps leaves your data in `%USERPROFILE%\.bloomterm`.
+- **The tray** takes the menu bar's place. Click bloomterm to open it, or right-click for the menu.
+  Windows may keep the icon behind the ^ arrow.
+- **Updates** announce themselves in a toast. Right-click bloomterm in the tray and choose Restart
+  to Update.
+- **API keys** are in Windows Credential Manager.
+- `bt` is at `%LOCALAPPDATA%\bloomterm\bundle\bt.cmd`.
+
 bloomd logs to `~/.bloomterm/logs/bloomd.log`. If you installed the LaunchAgent (`bt daemon
 install`), the app uses that bloomd; `bt daemon uninstall` lets the app run its own. SPEC §8.7 has
 the details.
 
 ### Releases
 
-Official builds are on this repo's [Releases](https://github.com/herval/bloomterm/releases):
-signed with a Developer ID, notarized by Apple, and updating themselves from the menu bar (Restart
-to Update). [RELEASING.md](RELEASING.md) has how to cut one, or sign your own from a fork.
+Official builds are on this repo's [Releases](https://github.com/herval/bloomterm/releases). Mac
+builds are signed with a Developer ID and notarized by Apple; Windows builds aren't code signed yet.
+Both update themselves from the menu bar or tray (Restart to Update). [RELEASING.md](RELEASING.md) has how to cut one, or sign your own from a fork.
 
 ## The web app
 
@@ -185,7 +208,7 @@ mnemonics (`PETR4 GP 1Y` opens PETR4's page on the 1Y chart). On a page, just st
 ⌘↵ sends what you typed to Ask. **⌘J** opens Ask beside the page. It knows what you're
 looking at. Phones get a tab bar.
 
-It's light by default. Dark, or following macOS, is in Settings → Appearance, the sun/moon in the
+It's light by default. Dark, or following your system, is in Settings → Appearance, the sun/moon in the
 top bar, or ⌘K ("Switch to dark theme"). The choice is saved per browser.
 
 ### The terminal board
@@ -233,8 +256,9 @@ bloomd polls each on its own interval, tags items with tickers, and groups the s
 several outlets into one story. When it has new items, your agent regroups them, titles the stories
 and fixes the tags. News text is shown as text and goes to the agent as data, never as instructions.
 
-Add keys in `SET`: bloomd saves them in the macOS Keychain (service `bloomterm`), and the UI only
-ever sees whether each is set. `BLOOMTERM_SECRET_BRAPI` (etc.) overrides the Keychain for a run.
+Add keys in `SET`: bloomd saves them in the macOS Keychain or Windows Credential Manager (service
+`bloomterm`), and the UI only ever sees whether each is set. `BLOOMTERM_SECRET_BRAPI` (etc.)
+overrides that for a run.
 Yahoo and Nasdaq aren't used: Yahoo rate-limits scripts and Nasdaq turns away non-browser clients.
 
 The UI talks only to bloomd. The page keeps bloomd's token in localStorage (no cookies: those are

@@ -3,7 +3,8 @@
 # screenshot and the logs go to the results folder.
 #
 # With an update folder (a newer version's installer and its latest.json) it also updates the app
-# from it, on 127.0.0.1:8765, where an app built for this looks.
+# from it, on 127.0.0.1:8765, where an app built for this looks, then goes through Setup with the
+# real agents. A release leaves both out: it shouldn't wait on Anthropic's or OpenAI's servers.
 #
 #   pwsh scripts/windows-smoke.ps1 <installer.exe> <results folder> [update folder]
 
@@ -73,16 +74,43 @@ function Install { (Start-Process $Installer -ArgumentList '/S' -Wait -PassThru)
 Add-Type -Namespace Win32 -Name Window -MemberDefinition @'
 [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string windowClass, string title);
 [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
+[DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+[DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint x, uint y, uint data, UIntPtr extra);
 '@
 function WindowShows { [Win32.Window]::IsWindowVisible([Win32.Window]::FindWindow([NullString]::Value, 'bloomterm')) }
 
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+
 function Screenshot([string] $name) {
-  Add-Type -AssemblyName System.Windows.Forms, System.Drawing
   $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
   $image = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
   [System.Drawing.Graphics]::FromImage($image).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
   $image.Save((Join-Path $Out "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
   $true
+}
+
+# A key, with the page in the window in focus.
+function Press([string] $keys) {
+  $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+  [Win32.Window]::SetCursorPos($bounds.Width / 2, $bounds.Height / 2) | Out-Null
+  foreach ($button in 2, 4) { [Win32.Window]::mouse_event($button, 0, 0, 0, [UIntPtr]::Zero) }
+  Start-Sleep -Milliseconds 500
+  [System.Windows.Forms.SendKeys]::SendWait($keys)
+  Start-Sleep -Seconds 2
+}
+
+function Api([string] $method, [string] $path) {
+  $token = (Get-Content -Raw (Join-Path $data 'token')).Trim()
+  Invoke-RestMethod -TimeoutSec 60 -Method $method -Headers @{ authorization = "Bearer $token" } "http://127.0.0.1:$((Bloomd).port)$path"
+}
+
+# What Setup says to paste, in Windows PowerShell as a new PC has it: running no script files. Its
+# input is closed, so nothing stops to ask a question.
+function Paste([string] $command) {
+  Write-Host "> $command"
+  $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+  $null | powershell.exe -NoProfile -ExecutionPolicy Restricted -EncodedCommand $encoded 2>&1 | Write-Host
+  $LASTEXITCODE -eq 0
 }
 
 Write-Host '--- install'
@@ -122,6 +150,17 @@ Write-Host '--- the tray menu, from a script'
 & $exe --menu=sources
 Start-Sleep -Seconds 3
 Check 'a screenshot of Sources' { Screenshot 'sources' }
+
+Write-Host '--- the keyboard'
+# WebView2 could keep these for itself. Only the pictures show that the page got them.
+Press '^k'
+Check 'a screenshot of Ctrl+K' { Screenshot 'ctrl-k' }
+Press '{ESC}'
+Press '^j'
+Check 'a screenshot of Ctrl+J' { Screenshot 'ctrl-j' }
+Press '^j'
+
+Write-Host '--- the tray menu, again'
 Check 'Open at Login turns on' { & $exe --menu=login; WaitFor 10 { OpensAtLogin } }
 Check 'and off' { & $exe --menu=login; WaitFor 10 { -not (OpensAtLogin) } }
 Check 'Restart bloomd restarts it' {
@@ -169,6 +208,28 @@ if ($Update) {
   Check 'bloomd stops by itself first' { WaitFor 30 { (Stops) -gt $stops } }
   Check 'the app comes back as the new version' { WaitFor 120 { (Version) -eq '99.0.0' -and (Running) -and (Healthy) } }
   $server | Stop-Process
+}
+
+if ($Update) {
+  Write-Host '--- Setup, with the real agents'
+  $claude = Join-Path $env:USERPROFILE '.local\bin\claude.exe'
+  $codex = Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe'
+  $setup = Api GET /api/setup
+  Check 'there is no agent yet' { -not $setup.agent.found }
+  Check 'Claude Code installs as Setup says' { (Paste $setup.agent.install.claude) -and (Test-Path $claude) }
+  Check 'Check again restarts bloomd to use it' {
+    $before = (Bloomd).pid
+    (Api POST /api/setup/check).restarting -and (WaitFor 60 { (Bloomd).pid -ne $before -and (Healthy) })
+  }
+  $setup = Api GET /api/setup
+  Write-Host "in use: $($setup.agent.inUse.kind) $($setup.agent.inUse.version), signed in: $($setup.agent.signedIn)"
+  Write-Host "new windows find it: $([Environment]::GetEnvironmentVariable('Path', 'User') -like '*\.local\bin*')"
+  Check 'bloomd uses it, and sees it signed out' { $setup.agent.inUse.kind -eq 'claude' -and $setup.agent.signedIn -eq $false }
+  Check 'the sign-in command Setup gives runs' { Paste "$($setup.agent.signIn) --help" }
+  Check 'Codex installs as Setup says' { (Paste $setup.agent.install.codex) -and (Test-Path $codex) }
+  Check 'Check again finds it too' { (Api POST /api/setup/check).agent.installed.kind -contains 'codex' }
+  Check 'its sign-in command runs' { Paste "& `"$codex`" login --help" }
+  Check 'the README''s way to check the installer runs' { Paste "Get-FileHash '$Installer'" }
 }
 
 Write-Host '--- uninstalling the running app'
